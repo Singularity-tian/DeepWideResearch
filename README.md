@@ -1,10 +1,10 @@
-# PuppyResearch
+# Deep & Wide Research
 
-Open-source DeepResearch & Wide Research.
+Open-source Deep & Wide Research.
 
 PuppyResearch is an open-source monorepo that combines a FastAPI backend and a Next.js 15 + React 19 frontend to power two complementary research modes:
 
-- DeepResearch: iterative, multi-step reasoning and refinement.
+- Deep Research: iterative, multi-step reasoning and refinement.
 - Wide Research: breadth-first exploration across diverse sources.
 
 ## Repository Structure
