@@ -55,44 +55,24 @@ export default function Home() {
       gap: '20px',
       padding: '20px'
     }}>
-      {/* Logo 区域 */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '12px',
-        marginBottom: '10px'
-      }}>
-        <Image 
-          src="/DWResearch.png" 
-          alt="Deep & Wide Research Logo" 
-          width={80} 
-          height={80}
-          priority
-        />
-        <h1 style={{ 
-          fontSize: '24px', 
-          fontWeight: 'bold',
-          color: 'white',
-          margin: 0
-        }}>
-          Deep & Wide Research
-        </h1>
-      </div>
 
       {/* 聊天界面 */}
       <ChatMain
         onSendMessage={handleSendMessage}
-        title="Research Assistant"
+        title="Deep Wide Research"
         placeholder="Ask anything about your research topic..."
         welcomeMessage="Welcome to Deep & Wide Research! I'm your AI research assistant ready to conduct comprehensive research and provide detailed insights. What would you like to explore today?"
         width="900px"
-        height="85%"
+        height="95%"
         recommendedQuestions={[
           "What are the key differences between Databricks and Snowflake?",
           "Explain quantum computing and its applications",
           "What are the latest trends in AI research?",
         ]}
         showHeader={true}
+        showHeaderIcon={true}
+        headerIcon="/SimpleDWlogo.svg"
+        headerIconSize={40}
         backgroundColor="transparent"
         borderWidth={3}
         showAvatar={false}
