@@ -73,14 +73,21 @@ export default function DeepWideGrid({
     display: 'flex',
     flexDirection: 'column',
     gap: '6px',
-    alignItems: 'flex-start'
+    alignItems: 'stretch',
+    position: 'relative',
+    width: '100%'
   }
 
-  const titleStyle: React.CSSProperties = {
+  const headerTitleStyle: React.CSSProperties = {
     fontSize: '10px',
-    color: '#bbb',
-    letterSpacing: '0.4px',
-    userSelect: 'none'
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    userSelect: 'none',
+    marginBottom: '12px',
+    paddingBottom: '8px',
+    borderBottom: '1px solid #2a2a2a',
+    width: '100%'
   }
 
   const gridWrapperStyle: React.CSSProperties = {
@@ -88,10 +95,13 @@ export default function DeepWideGrid({
     width: `${gridWidth}px`,
     height: `${gridHeight}px`,
     border: `${outerBorder}px solid #2a2a2a`,
-    borderRadius: '0px',
+    borderRadius: '8px',
     boxSizing: 'content-box',
     overflow: 'visible',
-    background: 'transparent'
+    background: 'rgba(10, 10, 10, 0.6)',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.05)',
+    marginTop: '26px',
+    marginLeft: '40px'
   }
 
   const gridStyle: React.CSSProperties = {
@@ -102,6 +112,17 @@ export default function DeepWideGrid({
     gridTemplateColumns: `repeat(${gridCols}, ${cellSize}px)`,
     gridAutoRows: `${cellSize}px`,
     gap: `${innerBorder}px`
+  }
+
+  // Axis labels
+  const axisLabelStyle: React.CSSProperties = {
+    position: 'absolute',
+    color: '#888',
+    fontSize: '9px',
+    fontWeight: '600',
+    letterSpacing: '0.6px',
+    textTransform: 'uppercase',
+    userSelect: 'none'
   }
 
   // Coverage includes boundary: cells whose top-left corner is within [0, W] × [0, D]
@@ -163,23 +184,95 @@ export default function DeepWideGrid({
   const tooltipText = `W ${displayWide.toFixed(2)} • D ${displayDeep.toFixed(2)}`
   const tooltipStyle: React.CSSProperties = {
     position: 'absolute',
-    left: `${selectedDotLeft + 8}px`,
-    top: `${selectedDotTop - 24}px`,
-    background: '#1f1f1f',
-    color: '#ddd',
-    border: '1px solid #2a2a2a',
+    left: `${selectedDotLeft + 10}px`,
+    top: `${selectedDotTop - 28}px`,
+    background: 'rgba(20, 20, 20, 0.98)',
+    color: '#e6e6e6',
+    border: '1px solid #3a3a3a',
     borderRadius: '6px',
-    padding: '4px 6px',
+    padding: '5px 9px',
     fontSize: '10px',
+    fontWeight: '500',
     whiteSpace: 'nowrap',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-    display: tooltipVisible ? 'block' : 'none'
+    boxShadow: '0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)',
+    display: tooltipVisible ? 'block' : 'none',
+    backdropFilter: 'blur(8px)'
   }
 
   return (
     <div style={containerStyle}>
-      {title && <div style={titleStyle}>{title}</div>}
+      {/* Header Title */}
+      <div style={headerTitleStyle}>Deep × Wide Settings</div>
+      
+      {/* Value Display */}
+      <div style={{ 
+        marginBottom: '12px',
+        padding: '7px 10px',
+        background: 'rgba(255, 255, 255, 0.05)',
+        border: '1px solid #2a2a2a',
+        borderRadius: '7px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '8px', color: '#888', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Wide
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: '#e6e6e6' }}>
+              {displayWide.toFixed(2)}
+            </div>
+          </div>
+          <div style={{ 
+            width: '1px', 
+            height: '24px',
+            background: '#3a3a3a'
+          }} />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '8px', color: '#888', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Deep
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: '#e6e6e6' }}>
+              {displayDeep.toFixed(2)}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div style={gridWrapperStyle}>
+        {/* Axis labels */}
+        <div style={{ 
+          ...axisLabelStyle, 
+          top: `${-22}px`, 
+          left: `${frameOffset}px`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          width: `${gridCols * cellSize + (gridCols - 1) * innerBorder}px`
+        }}>
+          <span style={{ flexShrink: 0 }}>wide</span>
+          <svg width={gridCols * cellSize + (gridCols - 1) * innerBorder - 32} height="8" viewBox={`0 0 ${gridCols * cellSize + (gridCols - 1) * innerBorder - 32} 8`} fill="none" style={{ marginTop: '1px' }}>
+            <path d={`M0 4H${gridCols * cellSize + (gridCols - 1) * innerBorder - 38}M${gridCols * cellSize + (gridCols - 1) * innerBorder - 38} 4L${gridCols * cellSize + (gridCols - 1) * innerBorder - 41} 1M${gridCols * cellSize + (gridCols - 1) * innerBorder - 38} 4L${gridCols * cellSize + (gridCols - 1) * innerBorder - 41} 7`} stroke="#888" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div style={{ 
+          ...axisLabelStyle, 
+          top: `${frameOffset}px`, 
+          left: `${-36}px`,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '6px',
+          height: `${gridRows * cellSize + (gridRows - 1) * innerBorder}px`
+        }}>
+          <span style={{ flexShrink: 0 }}>deep</span>
+          <svg width="8" height={gridRows * cellSize + (gridRows - 1) * innerBorder - 32} viewBox={`0 0 8 ${gridRows * cellSize + (gridRows - 1) * innerBorder - 32}`} fill="none">
+            <path d={`M4 0V${gridRows * cellSize + (gridRows - 1) * innerBorder - 38}M4 ${gridRows * cellSize + (gridRows - 1) * innerBorder - 38}L1 ${gridRows * cellSize + (gridRows - 1) * innerBorder - 41}M4 ${gridRows * cellSize + (gridRows - 1) * innerBorder - 38}L7 ${gridRows * cellSize + (gridRows - 1) * innerBorder - 41}`} stroke="#888" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
         <div style={gridStyle}>
           {renderCells()}
         </div>

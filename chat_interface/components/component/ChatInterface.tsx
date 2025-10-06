@@ -36,6 +36,8 @@ export interface ChatInterfaceProps {
   headerIcon?: string | React.ReactNode
   headerIconSize?: number
   showHeaderIcon?: boolean
+  // Optional area above the input for user-defined components (toolbar, filters, etc.)
+  aboveInput?: React.ReactNode
 }
 
 // 添加一个全局标识符来避免重复添加样式
@@ -81,7 +83,8 @@ export default function ChatInterface({
   variant = 'main',
   headerIcon,
   headerIconSize = 26,
-  showHeaderIcon = true
+  showHeaderIcon = true,
+  aboveInput
 }: ChatInterfaceProps = {}) {
   const resolvedBg = bg ?? backgroundColor
   // Create default initial messages using welcomeMessage
@@ -325,6 +328,9 @@ export default function ChatInterface({
       gap: '16px',
       borderTopLeftRadius: showHeader ? '0px' : '16px',
       borderTopRightRadius: showHeader ? '0px' : '16px'
+    },
+    toolbarContainer: {
+      padding: '0 20px 8px 20px'
     },
     inputContainer: {
       padding: '20px',
@@ -585,6 +591,13 @@ export default function ChatInterface({
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Above-input custom area */}
+      {aboveInput && (
+        <div style={styles.toolbarContainer}>
+          {aboveInput}
+        </div>
+      )}
 
       {/* Input */}
       <div style={styles.inputContainer}>

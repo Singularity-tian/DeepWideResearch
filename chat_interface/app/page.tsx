@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import dynamic from 'next/dynamic'
 import DeepWideGrid from './DeepWideGrid'
+import McpConfig from './McpConfig'
  
 
 // 动态导入本地 ChatMain 组件，禁用 SSR 以避免 document 未定义错误
@@ -22,6 +23,12 @@ export default function Home() {
   const [messageHistory, setMessageHistory] = useState<ChatMessage[]>([])
   const [researchParams, setResearchParams] = useState<{ deep: number; wide: number }>({ deep: 0.5, wide: 0.5 })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [mcpConfig, setMcpConfig] = useState({
+    services: [
+      { name: 'Tavily', enabled: false },
+      { name: 'Exa', enabled: false }
+    ]
+  })
   
 
   const handleSendMessage = async (message: string) => {
@@ -82,62 +89,7 @@ export default function Home() {
       justifyContent: 'center',
       padding: '20px'
     }}>
-      <div style={{ height: '95%', display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
-        {/* 左侧内联设置抽屉（与输入框对齐底部） */}
-        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-          <button
-            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            title="Research Settings"
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '20px',
-              border: '1px solid #2a2a2a',
-              background: '#141414',
-              color: '#bbb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 15.5C13.933 15.5 15.5 13.933 15.5 12C15.5 10.067 13.933 8.5 12 8.5C10.067 8.5 8.5 10.067 8.5 12C8.5 13.933 10.067 15.5 12 15.5Z" stroke="currentColor" strokeWidth="1.6"/>
-              <path d="M19 12C19 12.34 18.97 12.67 18.91 12.99L21 14.5L19.5 17L17.12 16.53C16.7 16.87 16.22 17.15 15.7 17.35L15.4 20H12.6L12.3 17.35C11.78 17.15 11.3 16.87 10.88 16.53L8.5 17L7 14.5L9.09 12.99C9.03 12.67 9 12.34 9 12C9 11.66 9.03 11.33 9.09 11.01L7 9.5L8.5 7L10.88 7.47C11.3 7.13 11.78 6.85 12.3 6.65L12.6 4H15.4L15.7 6.65C16.22 6.85 16.7 7.13 17.12 7.47L19.5 7L21 9.5L18.91 11.01C18.97 11.33 19 11.66 19 12Z" stroke="currentColor" strokeWidth="1.6"/>
-            </svg>
-          </button>
-          <div style={{
-            width: isSettingsOpen ? '180px' : '0px',
-            overflow: 'hidden',
-            transition: 'width 200ms ease',
-            marginLeft: '12px',
-            background: 'rgba(20,20,20,0.95)',
-            border: '1px solid #2a2a2a',
-            borderRadius: '12px',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.35)'
-          }}>
-            {isSettingsOpen && (
-              <div style={{ padding: '12px' }}>
-                <DeepWideGrid
-                  value={researchParams}
-                  onChange={setResearchParams}
-                  title="Deep × Wide"
-                  cellSize={20}
-                  innerBorder={2}
-                />
-                <div style={{ marginTop: '8px', fontSize: '12px', color: '#bbb' }}>
-                  {(() => {
-                    const step = 0.25
-                    const w = Math.min(1, researchParams.wide + step)
-                    const d = Math.min(1, researchParams.deep + step)
-                    return `W ${w.toFixed(2)} · D ${d.toFixed(2)}`
-                  })()}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+      <div style={{ height: '95%', display: 'flex', alignItems: 'flex-end' }}>
         <ChatMain
           onSendMessage={handleSendMessage}
           title="Deep Wide Research"
@@ -157,6 +109,112 @@ export default function Home() {
         backgroundColor="transparent"
         borderWidth={3}
         showAvatar={false}
+          aboveInput={
+            <div style={{ 
+              display: 'flex',
+              gap: '8px',
+              position: 'relative'
+            }}>
+              {/* Deep/Wide Settings */}
+              <div style={{ position: 'relative', width: '40px', height: '40px' }}>
+                {/* Settings Panel */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '52px',
+                    left: '0',
+                    width: '195px',
+                  background: 'linear-gradient(135deg, rgba(25,25,25,0.98) 0%, rgba(15,15,15,0.98) 100%)',
+                  border: '1px solid #2a2a2a',
+                  borderRadius: '14px',
+                  boxShadow: isSettingsOpen 
+                    ? '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.1)' 
+                    : '0 4px 12px rgba(0,0,0,0.3)',
+                  overflow: 'visible',
+                  opacity: isSettingsOpen ? 1 : 0,
+                  transform: isSettingsOpen ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.95)',
+                  transition: 'all 300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  pointerEvents: isSettingsOpen ? 'auto' : 'none',
+                  backdropFilter: 'blur(12px)',
+                  zIndex: 10
+                }}
+                aria-hidden={!isSettingsOpen}
+              >
+                {/* Grid Content */}
+                <div style={{ padding: '14px' }}>
+                  <DeepWideGrid
+                    value={researchParams}
+                    onChange={setResearchParams}
+                    cellSize={20}
+                    innerBorder={2}
+                    outerPadding={4}
+                  />
+                </div>
+              </div>
+
+              {/* Toggle Button */}
+              <button
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                title="Research Settings"
+                style={{
+                  position: 'relative',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '20px',
+                  border: isSettingsOpen 
+                    ? '2px solid #4a4a4a' 
+                    : '1px solid #2a2a2a',
+                  background: isSettingsOpen 
+                    ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%)' 
+                    : 'rgba(20, 20, 20, 0.9)',
+                  color: isSettingsOpen ? '#e6e6e6' : '#bbb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: isSettingsOpen 
+                    ? '0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.1)' 
+                    : '0 2px 8px rgba(0,0,0,0.3)',
+                  transition: 'all 200ms ease',
+                  transform: isSettingsOpen ? 'rotate(180deg) scale(1.05)' : 'rotate(0deg) scale(1)',
+                  backdropFilter: 'blur(8px)',
+                  padding: 0,
+                  margin: 0,
+                  zIndex: 11
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSettingsOpen) {
+                    e.currentTarget.style.borderColor = '#3a3a3a'
+                    e.currentTarget.style.color = '#e6e6e6'
+                    e.currentTarget.style.transform = 'scale(1.08)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSettingsOpen) {
+                    e.currentTarget.style.borderColor = '#2a2a2a'
+                    e.currentTarget.style.color = '#bbb'
+                    e.currentTarget.style.transform = 'scale(1)'
+                  }
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 6H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="8" cy="6" r="2.5" fill="currentColor"/>
+                  <path d="M4 12H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="14" cy="12" r="2.5" fill="currentColor"/>
+                  <path d="M4 18H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="10" cy="18" r="2.5" fill="currentColor"/>
+                </svg>
+              </button>
+              </div>
+
+              {/* MCP Config */}
+              <McpConfig
+                value={mcpConfig}
+                onChange={setMcpConfig}
+              />
+            </div>
+          }
         />
       </div>
     </div>
