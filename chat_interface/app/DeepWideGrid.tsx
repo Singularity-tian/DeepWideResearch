@@ -13,6 +13,7 @@ export interface DeepWideGridProps {
   cellSize?: number
   innerBorder?: number
   outerBorder?: number
+  outerPadding?: number
   title?: string
 }
 
@@ -22,9 +23,13 @@ export default function DeepWideGrid({
   cellSize = 24,
   innerBorder = 1,
   outerBorder = 1,
+  outerPadding = 4,
   title
 }: DeepWideGridProps) {
   const step = 0.25
+
+  // Frame offset = visual border + inner padding (kept independent from gap)
+  const frameOffset = outerBorder + outerPadding
 
   const clamped = useMemo(() => ({
     deep: Math.max(0, Math.min(1, value.deep)),
@@ -41,8 +46,8 @@ export default function DeepWideGrid({
 
   const gridCols = 4
   const gridRows = 4
-  const gridWidth = gridCols * cellSize + (gridCols - 1) * innerBorder + 2 * outerBorder
-  const gridHeight = gridRows * cellSize + (gridRows - 1) * innerBorder + 2 * outerBorder
+  const gridWidth = gridCols * cellSize + (gridCols - 1) * innerBorder + 2 * frameOffset
+  const gridHeight = gridRows * cellSize + (gridRows - 1) * innerBorder + 2 * frameOffset
 
   // Dot is one step right/down from selected intersection. Clamp to grid border for max.
   const dotColIndex = Math.min(gridCols, selectedColIndex + 1)
@@ -50,13 +55,13 @@ export default function DeepWideGrid({
 
   const positionForCol = (j: number) => (
     j < gridCols
-      ? outerBorder + j * (cellSize + innerBorder)
-      : outerBorder + gridCols * cellSize + (gridCols - 1) * innerBorder
+      ? frameOffset + j * (cellSize + innerBorder)
+      : frameOffset + gridCols * cellSize + (gridCols - 1) * innerBorder
   )
   const positionForRow = (i: number) => (
     i < gridRows
-      ? outerBorder + i * (cellSize + innerBorder)
-      : outerBorder + gridRows * cellSize + (gridRows - 1) * innerBorder
+      ? frameOffset + i * (cellSize + innerBorder)
+      : frameOffset + gridRows * cellSize + (gridRows - 1) * innerBorder
   )
 
   const selectedDotLeft = positionForCol(dotColIndex)
@@ -83,7 +88,7 @@ export default function DeepWideGrid({
     width: `${gridWidth}px`,
     height: `${gridHeight}px`,
     border: `${outerBorder}px solid #2a2a2a`,
-    borderRadius: '6px',
+    borderRadius: '0px',
     boxSizing: 'content-box',
     overflow: 'visible',
     background: 'transparent'
@@ -91,8 +96,8 @@ export default function DeepWideGrid({
 
   const gridStyle: React.CSSProperties = {
     position: 'absolute',
-    top: `${outerBorder}px`,
-    left: `${outerBorder}px`,
+    top: `${frameOffset}px`,
+    left: `${frameOffset}px`,
     display: 'grid',
     gridTemplateColumns: `repeat(${gridCols}, ${cellSize}px)`,
     gridAutoRows: `${cellSize}px`,
@@ -142,20 +147,20 @@ export default function DeepWideGrid({
 
   const dotStyle: React.CSSProperties = {
     position: 'absolute',
-    left: `${selectedDotLeft - 3}px`,
-    top: `${selectedDotTop - 3}px`,
+    left: `${selectedDotLeft - 6}px`,
+    top: `${selectedDotTop - 6}px`,
     width: '6px',
     height: '6px',
     borderRadius: '50%',
-    backgroundColor: '#4a90e2',
-    boxShadow: '0 0 0 1px rgba(74,144,226,0.9), 0 2px 6px rgba(0,0,0,0.5)',
+    backgroundColor: '#e6e6e6',
+    boxShadow: '0 0 0 1px rgba(200,200,200,0.9), 0 2px 6px rgba(0,0,0,0.35)',
     pointerEvents: 'none'
   }
 
   const tooltipVisible = hoverCell && hoverCell.row === selectedRowIndex && hoverCell.col === selectedColIndex
   const displayWide = Math.min(1, clamped.wide + step)
   const displayDeep = Math.min(1, clamped.deep + step)
-  const tooltipText = `W ${displayWide.toFixed(2)} • D ${displayDeep.toFixed(2)} • A ${(displayWide * displayDeep).toFixed(2)}`
+  const tooltipText = `W ${displayWide.toFixed(2)} • D ${displayDeep.toFixed(2)}`
   const tooltipStyle: React.CSSProperties = {
     position: 'absolute',
     left: `${selectedDotLeft + 8}px`,

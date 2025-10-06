@@ -108,7 +108,7 @@ export default function Home() {
             </svg>
           </button>
           <div style={{
-            width: isSettingsOpen ? '240px' : '0px',
+            width: isSettingsOpen ? '180px' : '0px',
             overflow: 'hidden',
             transition: 'width 200ms ease',
             marginLeft: '12px',
@@ -123,13 +123,15 @@ export default function Home() {
                   value={researchParams}
                   onChange={setResearchParams}
                   title="Deep × Wide"
+                  cellSize={20}
+                  innerBorder={2}
                 />
                 <div style={{ marginTop: '8px', fontSize: '12px', color: '#bbb' }}>
                   {(() => {
                     const step = 0.25
                     const w = Math.min(1, researchParams.wide + step)
                     const d = Math.min(1, researchParams.deep + step)
-                    return `W ${w.toFixed(2)} · D ${d.toFixed(2)} · A ${(w * d).toFixed(2)}`
+                    return `W ${w.toFixed(2)} · D ${d.toFixed(2)}`
                   })()}
                 </div>
               </div>
