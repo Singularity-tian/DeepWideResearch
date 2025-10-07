@@ -19,13 +19,13 @@ from typing import Dict, List, Optional, Any
 if __name__ == "__main__":
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent.parent))
-    from native_deep_research.providers import chat_complete
-    from native_deep_research.mcp_client import get_registry
-    from native_deep_research.newprompt import unified_research_prompt
+    from deep_wide_research.providers import chat_complete
+    from deep_wide_research.mcp_client import get_registry
+    from deep_wide_research.newprompt import create_unified_research_prompt
 else:
     from .providers import chat_complete
     from .mcp_client import get_registry
-    from .newprompt import unified_research_prompt
+    from .newprompt import create_unified_research_prompt
 
 
 # MCP 工具选择配置：{server_name: [tool_names]}
@@ -178,7 +178,9 @@ async def run_research_llm_driven(
     topic: str, 
     cfg, 
     api_keys: Optional[dict] = None,
-    mcp_config: Optional[Dict[str, List[str]]] = None
+    mcp_config: Optional[Dict[str, List[str]]] = None,
+    deep_param: float = 0.5,
+    wide_param: float = 0.5
 ) -> Dict[str, str]:
     """LLM 驱动的研究循环 - 使用 unified_research_prompt
     
@@ -216,14 +218,16 @@ async def run_research_llm_driven(
     for tool in mcp_tools:
         print(f"  - {tool.get('name', 'unknown')}")
     
-    # 2. 构建 system prompt - 使用 unified_research_prompt
+    # 2. 构建 system prompt - 使用 create_unified_research_prompt 动态生成
     mcp_prompt = build_mcp_tools_description(mcp_tools)
     max_iterations = getattr(cfg, 'max_react_tool_calls', 8)
     
-    system_prompt = unified_research_prompt.format(
+    system_prompt = create_unified_research_prompt(
         date=datetime.now().strftime("%Y-%m-%d"),
         mcp_prompt=mcp_prompt,
-        max_researcher_iterations=max_iterations
+        max_researcher_iterations=max_iterations,
+        deep_param=deep_param,
+        wide_param=wide_param
     )
     
     messages = [

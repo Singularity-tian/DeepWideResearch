@@ -1,7 +1,7 @@
 
 
 unified_research_prompt = """
-You are a unified research agent conducting comprehensive research on the user's input topic. For context, today's date is {date}.
+You are a research agent conducting professional and comprehensive research on the user's input topic. For context, today's date is {date}.
 
 <Task>
 Your job is to directly use research tools to gather information about the user's input topic, and determine when the research is complete.
@@ -19,6 +19,7 @@ You have access to the following tools:
 </Available Tools>
 
 <Instructions>
+{deep_wide_instructions}
 You are a research agent conducting deep research. Your workflow follows a clear cycle:
 
 **Phase 1: Understand & Plan (Before First Search)**
@@ -50,10 +51,11 @@ You are a research agent conducting deep research. Your workflow follows a clear
 </Instructions>
 
 <Hard Limits>
+{deep_wide_limits}
 **Tool Call Budgets** (Prevent excessive searching):
-- **Simple queries** (fact-finding, lists, rankings): Use 2-3 search tool calls maximum
-- **Moderate queries** (comparisons, multi-aspect topics): Use 3-5 search tool calls maximum
-- **Complex queries** (deep analysis, comprehensive overviews): Use up to 7 search tool calls maximum
+- **Simple queries** (fact-finding, lists, rankings)
+- **Moderate queries** (comparisons, multi-aspect topics)
+- **Complex queries** (deep analysis, comprehensive overviews)
 - **Always stop**: After {max_researcher_iterations} total tool calls if you cannot find the right sources
 
 **Stop Immediately When**:
@@ -189,6 +191,121 @@ Reason: Comprehensive coverage with facts and example
 - A separate agent will write the final report based on your findings - focus on gathering comprehensive, relevant information
 </Research Strategy Guidelines>"""
 
+
+
+def generate_dynamic_research_config(deep_param: float, wide_param: float, max_researcher_iterations: int):
+    """生成基于deep/wide参数的动态研究配置 - 简单实现"""
+    
+    # Deep参数配置 (0.25/0.5/0.75/1.0) → 决定“搜索轮次上限( rounds )”与证据要求
+    deep_settings = {
+        0.25: {
+            "level": "basic",
+            "evidence": "basic facts and 1-2 examples per aspect",
+            "max_search_rounds": 2,
+            "guidance": "Focus on surface facts and clear definitions; validate with quick cross-checks; avoid deep rabbit holes; keep assumptions minimal."
+        },
+        0.5: {
+            "level": "standard",
+            "evidence": "solid evidence and 2-4 examples per aspect",
+            "max_search_rounds": 4,
+            "guidance": "Analyze context, causes and effects; propose simple hypotheses and verify with at least two independent sources; capture contradictions and resolve them briefly."
+        }, 
+        0.75: {
+            "level": "detailed",
+            "evidence": "detailed evidence and 4-8 examples with supporting data",
+            "max_search_rounds": 8,
+            "guidance": "For each key point, deep-dive with sub-questions; form hypotheses, gather primary sources, triangulate across multiple independent sources; quantify with numbers and benchmarks; explicitly test counter-hypotheses and explain contradictions."
+        },
+        1.0: {
+            "level": "professional",
+            "evidence": "professional evidence with 8-16 examples, statistics, and expert analysis",
+            "max_search_rounds": 16,
+            "guidance": "Exhaustive deep-dive: decompose into sub-questions; build an evidence tree; seek primary and longitudinal data; perform cross-source validation and sensitivity checks; analyze mechanisms, timelines, edge cases; articulate limitations and counterarguments."
+        }
+    }
+    
+    # Wide参数配置 (0.25/0.5/0.75/1.0)  → 决定“每轮可调用工具次数上限”
+    wide_settings = {
+        0.25: {
+            "aspects": "1-2 core aspects",
+            "strategy": "focused analysis",
+            "max_calls_per_round": 2,
+            "guidance": "Prioritize the most relevant angle(s) only; select the highest-signal sources; avoid tangents; ensure at least one authoritative source per aspect."
+        },
+        0.5: {
+            "aspects": "2-4 main aspects",
+            "strategy": "balanced coverage",
+            "max_calls_per_round": 4,
+            "guidance": "Cover multiple angles: official documentation + independent verification; include timeline and stakeholder views; compare at least one alternative or baseline."
+        },
+        0.75: {
+            "aspects": "4-8 broad aspects",
+            "strategy": "comprehensive coverage",
+            "max_calls_per_round": 4,
+            "guidance": "Explore from multiple perspectives: stakeholders, geographies, time horizons, comparable products/approaches; include neutral and critical sources; surface controversies and trade-offs."
+        }, 
+        1.0: {
+            "aspects": "8-16 multi-dimensional aspects",
+            "strategy": "exhaustive multi-angle analysis",
+            "max_calls_per_round": 16,
+            "guidance": "All-round coverage: technical, business, user, security, policy/regulation, and international perspectives; include academic papers, official reports, datasets, code repos, and high-quality journalism; compare schools of thought and dissenting opinions."
+        }
+    }
+    
+    deep = deep_settings[deep_param]
+    wide = wide_settings[wide_param]
+    
+    # 直接给出明确的上限，覆盖原有统一上限
+    max_search_rounds = deep["max_search_rounds"]
+    max_calls_per_round = wide["max_calls_per_round"]
+    
+    # 构造直接插入到各段落的简洁文本
+    instructions_block = (
+        "Definitions and Background:\n"
+        "- Deep: Depth-first on each key point; form hypotheses, gather primary sources, cross-validate, quantify, and test counter-hypotheses.\n"
+        "- Wide: Multi-angle coverage; diversify source types and perspectives, compare alternatives, include neutral and dissenting views.\n\n"
+        f"Deep setting:\n"
+        f"- Level: {deep['level']}\n"
+        f"- How to go deep: {deep['guidance']}\n"
+        f"- Evidence standard: {deep['evidence']}\n\n"
+        f"Wide setting:\n"
+        f"- Strategy: {wide['strategy']}\n"
+        f"- Aspects to cover: {wide['aspects']}\n"
+        f"- How to broaden: {wide['guidance']}\n"
+    )
+
+    hard_limits_block = (
+        "Definitions and Background:\n"
+        "- Round: One assistant response cycle where you may issue one or more tool calls before receiving results.\n"
+        "- Max search rounds: The total number of rounds in which you can use search tools before finalizing.\n"
+        "- Max tool calls per round: The maximum number of tool invocations allowed within a single round; you may call the same tool multiple times.\n"
+        "\nLimits:\n"
+        f"- Max search rounds: {max_search_rounds}\n"
+        f"- Max tool calls per round: {max_calls_per_round}\n"
+        "- These limits override the generic budgets listed below.\n"
+    )
+
+    return deep, wide, instructions_block, hard_limits_block
+
+
+def create_unified_research_prompt(date: str, mcp_prompt: str, max_researcher_iterations: int, deep_param: float = 0.5, wide_param: float = 0.5):
+    """创建动态的 unified_research_prompt：将 deep/wide 的文字直接插入现有段落中"""
+
+    # 生成 deep / wide 的设置与插入文本
+    deep_cfg, wide_cfg, instructions_block, hard_limits_block = generate_dynamic_research_config(
+        deep_param, wide_param, max_researcher_iterations
+    )
+
+    # 构建最终 prompt（一次性填充所有占位符，避免二次 format 带来的花括号转义问题）
+    prompt = unified_research_prompt.format(
+        date=date,
+        mcp_prompt=mcp_prompt,
+        max_researcher_iterations=max_researcher_iterations,
+        deep_wide_instructions=instructions_block,
+        deep_wide_limits=hard_limits_block,
+    )
+
+    return prompt
 
 
 final_report_generation_prompt = """

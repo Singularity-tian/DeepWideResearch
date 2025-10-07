@@ -122,7 +122,9 @@ async def research(request: ResearchRequest):
             user_messages=user_messages,
             cfg=cfg,
             api_keys=None,  # 将从环境变量读取
-            mcp_config=request.message.mcp  # 传递 MCP 配置
+            mcp_config=request.message.mcp,  # 传递 MCP 配置
+            deep_param=request.message.deepwide.deep,  # 传递 Deep 参数
+            wide_param=request.message.deepwide.wide   # 传递 Wide 参数
         )
         
         # 提取最终报告

@@ -1,6 +1,7 @@
 import { Copy, Check } from 'lucide-react'
 import { CSSProperties, useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { Message } from '../types'
 
 const StyleManager = {
@@ -62,11 +63,36 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
     h1: { fontSize: '18px', fontWeight: 700, lineHeight: '1.6', margin: '0 0 8px 0' },
     h2: { fontSize: '16px', fontWeight: 700, lineHeight: '1.6', margin: '0 0 6px 0' },
     h3: { fontSize: '15px', fontWeight: 600, lineHeight: '1.6', margin: '0 0 4px 0' },
-    table: { borderCollapse: 'collapse', width: '100%', margin: '12px 0', fontSize: '14px', border: '1px solid #3a3a3a' },
+    table: { 
+      borderCollapse: 'collapse', 
+      width: '100%', 
+      margin: '12px 0', 
+      fontSize: '14px', 
+      border: '1px solid #3a3a3a',
+      backgroundColor: '#1a1a1a',
+      borderRadius: '6px',
+      overflow: 'hidden'
+    },
     thead: { backgroundColor: '#2a2a2a' },
-    th: { padding: '10px 12px', textAlign: 'left', borderBottom: '2px solid #3a3a3a', fontWeight: 600, color: '#e0e0e0' },
-    td: { padding: '8px 12px', borderBottom: '1px solid #2a2a2a', color: '#d2d2d2' },
-    tr: { borderBottom: '1px solid #2a2a2a' },
+    th: { 
+      padding: '10px 12px', 
+      textAlign: 'left', 
+      borderBottom: '2px solid #3a3a3a', 
+      borderRight: '1px solid #3a3a3a',
+      fontWeight: 600, 
+      color: '#e0e0e0',
+      backgroundColor: '#2a2a2a'
+    },
+    td: { 
+      padding: '8px 12px', 
+      borderBottom: '1px solid #2a2a2a', 
+      borderRight: '1px solid #2a2a2a',
+      color: '#d2d2d2',
+      verticalAlign: 'top'
+    },
+    tr: { 
+      borderBottom: '1px solid #2a2a2a'
+    },
     metaBar: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', opacity: isHovered ? 0.6 : 0, transition: 'opacity 0.2s ease', justifyContent: 'flex-start' },
     timestamp: { fontSize: '11px', color: '#a0a0a0' },
     copyButton: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '4px', color: '#a0a0a0', cursor: 'pointer' },
@@ -90,6 +116,7 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
         ) : (
           <div style={styles.content}>
             <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
               components={{
                 p: ({ ...props }) => (<p style={{ margin: 0, lineHeight: '1.6' }} {...props} />),
                 h1: ({ ...props }) => (<div role="heading" aria-level={1} style={styles.h1} {...props} />),

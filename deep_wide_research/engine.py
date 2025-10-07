@@ -17,8 +17,8 @@ import sys
 if __name__ == "__main__":
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent.parent))
-    from native_deep_research.research_strategy import run_research_llm_driven
-    from native_deep_research.generate_strategy import generate_report
+    from deep_wide_research.research_strategy import run_research_llm_driven
+    from deep_wide_research.generate_strategy import generate_report
 else:
     from .research_strategy import run_research_llm_driven
     from .generate_strategy import generate_report
@@ -31,9 +31,9 @@ def today_str() -> str:
     return f"{now:%a} {now:%b} {now.day}, {now:%Y}"
 
 
-async def _run_researcher(topic: str, cfg: Configuration, api_keys: Optional[dict], mcp_config: Optional[Dict[str, List[str]]] = None) -> Dict[str, str]:
+async def _run_researcher(topic: str, cfg: Configuration, api_keys: Optional[dict], mcp_config: Optional[Dict[str, List[str]]] = None, deep_param: float = 0.5, wide_param: float = 0.5) -> Dict[str, str]:
     # Delegate to LLM-driven tool-calling strategy
-    return await run_research_llm_driven(topic=topic, cfg=cfg, api_keys=api_keys, mcp_config=mcp_config)
+    return await run_research_llm_driven(topic=topic, cfg=cfg, api_keys=api_keys, mcp_config=mcp_config, deep_param=deep_param, wide_param=wide_param)
 
 
 # removed supervisor_tools for single-agent design
@@ -61,7 +61,7 @@ class Configuration:
         self.mcp_prompt = None
 
 
-async def run_deep_research(user_messages: List[str], cfg: Optional[Configuration] = None, api_keys: Optional[dict] = None, mcp_config: Optional[Dict[str, List[str]]] = None) -> dict:
+async def run_deep_research(user_messages: List[str], cfg: Optional[Configuration] = None, api_keys: Optional[dict] = None, mcp_config: Optional[Dict[str, List[str]]] = None, deep_param: float = 0.5, wide_param: float = 0.5) -> dict:
     """完整的深度研究流程：Research → Generate
     
     Args:
@@ -87,8 +87,8 @@ async def run_deep_research(user_messages: List[str], cfg: Optional[Configuratio
     # ============================================================
     # Phase 1: Research - 使用 unified_research_prompt
     # ============================================================
-    print("\n🔬 Starting Research Phase...")
-    research = await _run_researcher(research_topic, cfg, api_keys, mcp_config)
+    print(f"\n🔬 Starting Research Phase (Deep={deep_param}, Wide={wide_param})...")
+    research = await _run_researcher(research_topic, cfg, api_keys, mcp_config, deep_param, wide_param)
     raw_notes = research.get("raw_notes", "") if research else ""
     state["notes"] = [raw_notes] if raw_notes else []
     # 将 raw_notes JSON 也注入 messages，供生成阶段作为上下文
@@ -112,7 +112,7 @@ async def run_deep_research(user_messages: List[str], cfg: Optional[Configuratio
     
     # 统一关闭所有 MCP clients，避免关闭发生在不同 task 导致的 cancel scope 异常
     try:
-        from native_deep_research.mcp_client import get_registry
+        from deep_wide_research.mcp_client import get_registry
     except Exception:
         try:
             from .mcp_client import get_registry
