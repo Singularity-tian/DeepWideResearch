@@ -101,7 +101,7 @@ export default function Home() {
   }, [mcpConfig])
   
 
-  const handleSendMessage = async (message: string) => {
+  const handleSendMessage = async (message: string, onStreamUpdate?: (content: string, isStreaming?: boolean) => void) => {
     try {
       // 构造请求数据
       const requestData = {
@@ -129,15 +129,13 @@ export default function Home() {
         history: messageHistory  // 发送完整的对话历史（包含 role 和 content）
       }
 
-      // 打印调试信息
-      console.log('🚀 Sending request to backend:')
-      console.log('📝 Query:', message)
-      console.log('📊 Deep/Wide params:', requestData.message.deepwide)
-      console.log('🔧 MCP services:', requestData.message.mcp)
-      console.log('📜 History length:', messageHistory.length)
-      console.log('📦 Complete request data:', JSON.stringify(requestData, null, 2))
+      console.log('🚀 Sending streaming request to backend:', message)
 
-      // 调用后端 Python API - 使用新的消息格式
+      // 先添加用户消息到历史记录
+      const userMessage: ChatMessage = { role: 'user', content: message }
+      setMessageHistory(prev => [...prev, userMessage])
+
+      // 调用streaming API
       const response = await fetch('http://localhost:8000/api/research', {
         method: 'POST',
         headers: {
@@ -150,26 +148,54 @@ export default function Home() {
         throw new Error(`API request failed: ${response.statusText}`)
       }
 
-      const data = await response.json()
-      const botResponse = data.response || 'No response received'
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('No response body reader available')
+      }
+
+      let currentStatus = ''
+      let finalReport = ''
+
+      // 读取streaming响应
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = new TextDecoder().decode(value)
+        const lines = chunk.split('\n')
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              
+              if (data.action === 'complete' && data.final_report) {
+                finalReport = data.final_report
+                onStreamUpdate?.(finalReport, false) // 标记streaming结束
+              } else if (data.message) {
+                currentStatus = data.message
+                onStreamUpdate?.(currentStatus, true) // 标记正在streaming
+              }
+            } catch (e) {
+              console.warn('Failed to parse SSE data:', line)
+            }
+          }
+        }
+      }
+
+      // 更新最终消息历史
+      const assistantMessage: ChatMessage = { role: 'assistant', content: finalReport || currentStatus }
+      setMessageHistory(prev => [...prev, assistantMessage])
       
-      // 更新消息历史 - 保存用户消息和助手回复
-      setMessageHistory([
-        ...messageHistory,
-        { role: 'user', content: message },
-        { role: 'assistant', content: botResponse }
-      ])
-      
-      // 返回研究结果
-      return botResponse
+      return finalReport || currentStatus
       
     } catch (error) {
       console.error('Error calling research API:', error)
       const errorMessage = `❌ Error: ${error instanceof Error ? error.message : 'Failed to connect to research API. Please make sure the backend server is running on http://localhost:8000'}`
       
       // 即使出错也要保存到历史记录
-      setMessageHistory([
-        ...messageHistory,
+      setMessageHistory(prev => [
+        ...prev,
         { role: 'user', content: message },
         { role: 'assistant', content: errorMessage }
       ])

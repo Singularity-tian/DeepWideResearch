@@ -12,12 +12,14 @@ sys.path.insert(0, str(project_root))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import asyncio
+import json
 
 # 现在可以正确导入 engine 模块
-from deep_wide_research.engine import run_deep_research, Configuration
+from deep_wide_research.engine import run_deep_research, run_deep_research_stream, Configuration
 
 app = FastAPI(title="PuppyResearch API", version="1.0.0")
 
@@ -84,67 +86,48 @@ async def health_check():
     return {"status": "healthy"}
 
 
-@app.post("/api/research", response_model=ResearchResponse)
-async def research(request: ResearchRequest):
-    """
-    执行深度研究
-    
-    接收用户消息，返回研究报告
-    """
+async def research_stream_generator(request: ResearchRequest):
+    """生成研究流式响应"""
     try:
-        # 构建消息历史 - 提取所有用户消息
+        # 构建消息历史
         history_messages = request.history or []
-        
-        # 只提取用户消息内容用于研究
-        # （研究引擎目前只需要用户问题，不需要assistant的回复）
         user_messages = [msg.content for msg in history_messages if msg.role == "user"]
         user_messages.append(request.message.query)
         
         # 创建配置
         cfg = Configuration()
         
-        # 根据 deepwide 参数调整配置
-        # deep: 控制研究深度 (迭代次数)
-        # wide: 控制研究广度 (每次搜索的范围)
-        # 这里可以根据需要调整配置参数
-        # 例如：cfg.max_react_tool_calls = int(5 + request.message.deepwide.deep * 10)
-        
-        # 执行研究
         print(f"\n🔍 Received research request: {request.message.query}")
-        print(f"📊 Research parameters:")
-        print(f"   - Deep: {request.message.deepwide.deep} (0-1)")
-        print(f"   - Wide: {request.message.deepwide.wide} (0-1)")
-        print(f"   - MCP Services: {request.message.mcp}")
-        print(f"📜 Conversation history: {len(history_messages)} messages")
-        print(f"👤 User messages: {len(user_messages)} messages")
+        print(f"📊 Deep: {request.message.deepwide.deep}, Wide: {request.message.deepwide.wide}")
         
-        result = await run_deep_research(
+        # 执行研究并获取流式更新
+        async for update in run_deep_research_stream(
             user_messages=user_messages,
             cfg=cfg,
-            api_keys=None,  # 将从环境变量读取
-            mcp_config=request.message.mcp,  # 传递 MCP 配置
-            deep_param=request.message.deepwide.deep,  # 传递 Deep 参数
-            wide_param=request.message.deepwide.wide   # 传递 Wide 参数
-        )
-        
-        # 提取最终报告
-        final_report = result.get("final_report", "")
-        notes = result.get("notes", [])
-        
-        print(f"✅ Research completed successfully")
-        
-        return ResearchResponse(
-            response=final_report,
-            notes=notes,
-            success=True
-        )
-        
+            api_keys=None,
+            mcp_config=request.message.mcp,
+            deep_param=request.message.deepwide.deep,
+            wide_param=request.message.deepwide.wide
+        ):
+            yield f"data: {json.dumps(update)}\n\n"
+            
     except Exception as e:
-        print(f"❌ Error during research: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Research failed: {str(e)}"
-        )
+        error_msg = {'action': 'error', 'message': f'Research failed: {str(e)}'}
+        yield f"data: {json.dumps(error_msg)}\n\n"
+
+
+@app.post("/api/research")
+async def research(request: ResearchRequest):
+    """执行深度研究 - 流式响应"""
+    return StreamingResponse(
+        research_stream_generator(request),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        }
+    )
 
 
 if __name__ == "__main__":

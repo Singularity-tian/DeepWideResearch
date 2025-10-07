@@ -36,6 +36,7 @@ async def _run_researcher(topic: str, cfg: Configuration, api_keys: Optional[dic
     return await run_research_llm_driven(topic=topic, cfg=cfg, api_keys=api_keys, mcp_config=mcp_config, deep_param=deep_param, wide_param=wide_param)
 
 
+
 # removed supervisor_tools for single-agent design
 
 
@@ -59,6 +60,86 @@ class Configuration:
         self.final_report_model = os.getenv("FINAL_REPORT_MODEL", "openai:gpt-4.1")
         self.final_report_model_max_tokens = int(os.getenv("FINAL_REPORT_MODEL_MAX_TOKENS", "10000"))
         self.mcp_prompt = None
+
+
+async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Configuration] = None, api_keys: Optional[dict] = None, mcp_config: Optional[Dict[str, List[str]]] = None, deep_param: float = 0.5, wide_param: float = 0.5):
+    """流式版本的深度研究流程：Research → Generate
+    
+    Yields:
+        状态更新字典，包含 action 和 message 字段
+    """
+    cfg = cfg or Configuration()
+    state = {
+        "messages": [{"role": "user", "content": m} for m in user_messages],
+        "research_brief": None,
+        "notes": [],
+        "final_report": "",
+    }
+
+    # 提取研究主题
+    last_user = next((m for m in reversed(state["messages"]) if m["role"] == "user"), {"content": ""})
+    research_topic = last_user.get("content", "")
+
+    # ============================================================
+    # Phase 1: Research - 使用 unified_research_prompt
+    # ============================================================
+    yield {"action": "thinking", "message": "thinking..."}
+    
+    # 让用户看到thinking状态
+    import asyncio
+    await asyncio.sleep(2.5)
+    
+    # 显示工具使用状态
+    if mcp_config:
+        enabled_tools = []
+        for service, tools in mcp_config.items():
+            enabled_tools.extend(tools)
+        if enabled_tools:
+            tools_text = ", ".join(enabled_tools[:2])
+            yield {"action": "using_tools", "message": f"using {tools_text}..."}
+            # 让用户看到工具使用状态
+            await asyncio.sleep(2.0)
+    
+    research = await _run_researcher(research_topic, cfg, api_keys, mcp_config, deep_param, wide_param)
+    raw_notes = research.get("raw_notes", "") if research else ""
+    state["notes"] = [raw_notes] if raw_notes else []
+    
+    if raw_notes:
+        try:
+            json.loads(raw_notes)
+        except Exception:
+            pass
+        state["messages"].append({
+            "role": "user",
+            "content": f"<RAW_NOTES_JSON>\n{raw_notes}\n</RAW_NOTES_JSON>"
+        })
+
+    # ============================================================
+    # Phase 2: Generate - 使用 final_report_generation_prompt
+    # ============================================================
+    yield {"action": "generating", "message": "research finished, generating..."}
+    
+    await final_report_generation(state, cfg, api_keys)
+    
+    # 统一关闭所有 MCP clients
+    try:
+        from deep_wide_research.mcp_client import get_registry
+    except Exception:
+        try:
+            from .mcp_client import get_registry
+        except Exception:
+            get_registry = None
+    
+    if get_registry is not None:
+        try:
+            registry = get_registry()
+            if hasattr(registry, "close_all_clients"):
+                await registry.close_all_clients()
+        except Exception:
+            pass
+    
+    # 发送最终结果
+    yield {"action": "complete", "message": state["final_report"], "final_report": state["final_report"]}
 
 
 async def run_deep_research(user_messages: List[str], cfg: Optional[Configuration] = None, api_keys: Optional[dict] = None, mcp_config: Optional[Dict[str, List[str]]] = None, deep_param: float = 0.5, wide_param: float = 0.5) -> dict:
@@ -87,7 +168,6 @@ async def run_deep_research(user_messages: List[str], cfg: Optional[Configuratio
     # ============================================================
     # Phase 1: Research - 使用 unified_research_prompt
     # ============================================================
-    print(f"\n🔬 Starting Research Phase (Deep={deep_param}, Wide={wide_param})...")
     research = await _run_researcher(research_topic, cfg, api_keys, mcp_config, deep_param, wide_param)
     raw_notes = research.get("raw_notes", "") if research else ""
     state["notes"] = [raw_notes] if raw_notes else []
@@ -102,12 +182,9 @@ async def run_deep_research(user_messages: List[str], cfg: Optional[Configuratio
             "role": "user",
             "content": f"<RAW_NOTES_JSON>\n{raw_notes}\n</RAW_NOTES_JSON>"
         })
-    print(f"✅ Research Phase Complete - Collected {len(state['notes'])} note(s)")
-
     # ============================================================
     # Phase 2: Generate - 使用 final_report_generation_prompt
     # ============================================================
-    print("\n📝 Starting Report Generation Phase...")
     await final_report_generation(state, cfg, api_keys)
     
     # 统一关闭所有 MCP clients，避免关闭发生在不同 task 导致的 cancel scope 异常
@@ -126,7 +203,6 @@ async def run_deep_research(user_messages: List[str], cfg: Optional[Configuratio
                 await registry.close_all_clients()
         except Exception:
             pass
-    print("✅ Report Generation Complete")
     
     return state
 
@@ -174,7 +250,7 @@ if __name__ == "__main__":
         print(result['final_report'])
         
         print("\n" + "="*80)
-        print("✅ Test Complete!")
+        print("Test Complete!")
         print("="*80)
     
     asyncio.run(test())

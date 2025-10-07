@@ -16,7 +16,7 @@ export interface Message {
 
 // Add component Props interface
 export interface ChatInterfaceProps {
-  onSendMessage?: (message: string) => Promise<string> | string
+  onSendMessage?: (message: string, onStreamUpdate?: (content: string, isStreaming?: boolean) => void) => Promise<string> | string
   initialMessages?: Message[]
   placeholder?: string
   title?: string
@@ -101,6 +101,8 @@ export default function ChatInterface({
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
+  const [streamingStatus, setStreamingStatus] = useState<string>('')
+  const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -200,12 +202,23 @@ export default function ChatInterface({
     setIsTyping(true)
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
       let response: string
       if (onSendMessage) {
-        response = await onSendMessage(currentInput)
+        // Create streaming callback
+        const onStreamUpdate = (content: string, streaming: boolean = true) => {
+          if (streaming) {
+            setIsTyping(false)  // 关闭typing状态
+            setStreamingStatus(content)
+            setIsStreaming(true)
+          } else {
+            setIsStreaming(false)
+            setStreamingStatus('')
+          }
+        }
+        
+        response = await onSendMessage(currentInput, onStreamUpdate)
       } else {
+        await new Promise(resolve => setTimeout(resolve, 1500))
         response = `I received your message: "${currentInput}". This is a simulated response.`
       }
 
@@ -226,6 +239,8 @@ export default function ChatInterface({
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsTyping(false)
+      setIsStreaming(false)
+      setStreamingStatus('')
     }
   }
 
@@ -477,12 +492,14 @@ export default function ChatInterface({
 
       {/* Messages */}
       <div style={styles.messagesContainer} className="puppychat-messages">
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           message.sender === 'bot' ? (
             <BotMessage
               key={message.id}
               message={message}
               showAvatar={false}
+              streamingStatus={index === messages.length - 1 && isStreaming ? streamingStatus : undefined}
+              isStreaming={index === messages.length - 1 && isStreaming}
             />
           ) : (
             <UserMessage
@@ -577,7 +594,7 @@ export default function ChatInterface({
           </div>
         )}
         
-        {isTyping && (
+        {(isTyping || isStreaming) && (
           <BotMessage 
             message={{
               id: 'typing',
@@ -585,8 +602,10 @@ export default function ChatInterface({
               sender: 'bot',
               timestamp: new Date()
             }}
-            isTyping={true}
+            isTyping={isTyping && !isStreaming}
             showAvatar={false}
+            streamingStatus={isStreaming ? streamingStatus : undefined}
+            isStreaming={isStreaming}
           />
         )}
         <div ref={messagesEndRef} />

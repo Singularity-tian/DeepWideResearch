@@ -21,17 +21,27 @@ export interface BotMessageProps {
   message: Message
   showAvatar?: boolean
   isTyping?: boolean
+  streamingStatus?: string
+  isStreaming?: boolean
 }
 
-export default function BotMessage({ message, showAvatar = true, isTyping = false }: BotMessageProps) {
+export default function BotMessage({ message, showAvatar = true, isTyping = false, streamingStatus, isStreaming = false }: BotMessageProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    StyleManager.inject('puppychat-pulse-animation', `
+    StyleManager.inject('puppychat-animations', `
       @keyframes pulse {
         0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
         40% { transform: scale(1); opacity: 1; }
+      }
+      @keyframes textFlash {
+        0% { background-position: 100% 0; }
+        100% { background-position: -100% 0; }
+      }
+      @keyframes fadeInOut {
+        0%, 100% { opacity: 0.8; }
+        50% { opacity: 1; }
       }
     `)
   }, [])
@@ -97,7 +107,19 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
     timestamp: { fontSize: '11px', color: '#a0a0a0' },
     copyButton: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '4px', color: '#a0a0a0', cursor: 'pointer' },
     typingDots: { display: 'flex', alignItems: 'center', gap: '8px', height: '20px' },
-    dot: { width: '8px', height: '8px', backgroundColor: '#4a90e2', borderRadius: '50%', animation: 'pulse 1s infinite' }
+    dot: { width: '8px', height: '8px', backgroundColor: '#4a90e2', borderRadius: '50%', animation: 'pulse 1s infinite' },
+    streamingStatus: { 
+      fontSize: '14px', 
+      color: 'transparent',
+      marginBottom: '8px',
+      padding: 0,
+      background: 'linear-gradient(90deg, #444 0%, #444 30%, #ddd 50%, #444 70%, #444 100%)',
+      backgroundClip: 'text',
+      WebkitBackgroundClip: 'text',
+      backgroundSize: '200% 100%',
+      animation: 'textFlash 2s linear infinite',
+      transition: 'opacity 0.3s ease-in-out'
+    }
   }
 
   return (
@@ -115,6 +137,11 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
           </div>
         ) : (
           <div style={styles.content}>
+            {isStreaming && streamingStatus && (
+              <div style={styles.streamingStatus}>
+                {streamingStatus}
+              </div>
+            )}
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
