@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import dynamic from 'next/dynamic'
 import DeepWideGrid from './DeepWideGrid'
-import McpConfig, { McpConfigValue } from './McpConfig'
+import MCPBar from './MCPBar'
  
 
 // 动态导入本地 ChatMain 组件，禁用 SSR 以避免 document 未定义错误
@@ -23,7 +23,30 @@ export default function Home() {
   const [messageHistory, setMessageHistory] = useState<ChatMessage[]>([])
   const [researchParams, setResearchParams] = useState<{ deep: number; wide: number }>({ deep: 0.5, wide: 0.5 })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [mcpConfig, setMcpConfig] = useState<McpConfigValue>({
+
+  // 添加点击外部关闭设置面板的逻辑
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isSettingsOpen) {
+        const target = event.target as Element
+        const settingsPanel = document.querySelector('[data-settings-panel]')
+        const settingsButton = document.querySelector('[data-settings-button]')
+        
+        if (settingsPanel && settingsButton) {
+          const isClickInPanel = settingsPanel.contains(target)
+          const isClickOnButton = settingsButton.contains(target)
+          
+          if (!isClickInPanel && !isClickOnButton) {
+            setIsSettingsOpen(false)
+          }
+        }
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isSettingsOpen])
+  const [mcpConfig, setMcpConfig] = useState({
     services: [
       { 
         name: 'Tavily', 
@@ -49,19 +72,31 @@ export default function Home() {
 
   // 添加调试信息 - 显示当前 MCP 配置状态
   React.useEffect(() => {
-    const enabledTools = mcpConfig.services.reduce((acc, service) => {
-      const tools = service.tools
-        .filter(tool => tool.enabled)
-        .map(tool => tool.name)
-      if (tools.length > 0) {
-        acc[service.name.toLowerCase()] = tools
+    const enabledServices = mcpConfig.services
+      .filter(service => service.enabled)
+      .map(service => service.name)
+
+    const mcpForBackend = mcpConfig.services.reduce((acc, service) => {
+      if (service.enabled) {
+        const enabledTools = service.tools
+          .filter(tool => tool.enabled)
+          .map(tool => tool.name)
+        
+        if (enabledTools.length > 0) {
+          acc[service.name.toLowerCase()] = enabledTools
+        }
       }
       return acc
     }, {} as Record<string, string[]>)
     
     console.log('🔧 Current MCP config:', {
-      allServices: mcpConfig.services,
-      enabledTools: enabledTools
+      allServices: mcpConfig.services.map(s => ({ 
+        name: s.name, 
+        enabled: s.enabled,
+        tools: s.tools.map(t => ({ name: t.name, enabled: t.enabled }))
+      })),
+      enabledServices: enabledServices,
+      backendFormat: mcpForBackend
     })
   }, [mcpConfig])
   
@@ -77,14 +112,16 @@ export default function Home() {
             wide: researchParams.wide
           },
             mcp: mcpConfig.services.reduce((acc, service) => {
-              // 只包含启用的工具
-              const enabledTools = service.tools
-                .filter(tool => tool.enabled)
-                .map(tool => tool.name)
-              
-              if (enabledTools.length > 0) {
-                // 转换为后端期望的格式：{服务名小写: [启用的工具列表]}
-                acc[service.name.toLowerCase()] = enabledTools
+              // 只包含启用的服务和其工具
+              if (service.enabled) {
+                const enabledTools = service.tools
+                  .filter(tool => tool.enabled)
+                  .map(tool => tool.name)
+                
+                if (enabledTools.length > 0) {
+                  // 转换为后端期望的格式：{服务名小写: [启用的工具列表]}
+                  acc[service.name.toLowerCase()] = enabledTools
+                }
               }
               return acc
             }, {} as Record<string, string[]>)
@@ -173,20 +210,22 @@ export default function Home() {
         borderWidth={3}
         showAvatar={false}
           aboveInput={
-            <div style={{ 
-              display: 'flex',
-              gap: '8px',
-              position: 'relative'
-            }}>
+            <div 
+              style={{ 
+                display: 'flex',
+                gap: '8px',
+                position: 'relative'
+              }}
+            >
               {/* Deep/Wide Settings */}
-              <div style={{ position: 'relative', width: '40px', height: '40px' }}>
+              <div style={{ position: 'relative', width: '36px', height: '36px' }}>
                 {/* Settings Panel */}
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: '52px',
+                    bottom: '47px',
                     left: '0',
-                    width: '240px',
+                    width: '195px',
                   background: 'linear-gradient(135deg, rgba(25,25,25,0.98) 0%, rgba(15,15,15,0.98) 100%)',
                   border: '1px solid #2a2a2a',
                   borderRadius: '14px',
@@ -202,6 +241,8 @@ export default function Home() {
                   zIndex: 10
                 }}
                 aria-hidden={!isSettingsOpen}
+                onClick={(e) => e.stopPropagation()}
+                data-settings-panel
               >
                 {/* Grid Content */}
                 <div style={{ padding: '14px' }}>
@@ -220,13 +261,17 @@ export default function Home() {
 
               {/* Toggle Button */}
               <button
-                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setIsSettingsOpen(!isSettingsOpen)
+                }}
+                data-settings-button
                 title="Research Settings"
                 style={{
                   position: 'relative',
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '20px',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '18px',
                   border: isSettingsOpen 
                     ? '2px solid #4a4a4a' 
                     : '1px solid #2a2a2a',
@@ -263,7 +308,7 @@ export default function Home() {
                   }
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M4 6H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                   <circle cx="8" cy="6" r="2.5" fill="currentColor"/>
                   <path d="M4 12H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -274,8 +319,17 @@ export default function Home() {
               </button>
               </div>
 
-              {/* MCP Config */}
-              <McpConfig
+              {/* Separator Line */}
+              <div style={{
+                width: '1px',
+                height: '20px',
+                backgroundColor: '#3a3a3a',
+                margin: '0 4px',
+                alignSelf: 'center'
+              }} />
+
+              {/* MCP Services Bar */}
+              <MCPBar
                 value={mcpConfig}
                 onChange={setMcpConfig}
               />

@@ -330,7 +330,7 @@ export default function ChatInterface({
       borderTopRightRadius: showHeader ? '0px' : '16px'
     },
     toolbarContainer: {
-      padding: '0 20px 8px 20px'
+      padding: '0 20px 0px 20px'
     },
     inputContainer: {
       padding: '20px',
