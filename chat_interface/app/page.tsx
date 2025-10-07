@@ -25,8 +25,8 @@ export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [mcpConfig, setMcpConfig] = useState({
     services: [
-      { name: 'Tavily', enabled: false },
-      { name: 'Exa', enabled: false }
+      { name: 'Tavily', enabled: true },
+      { name: 'Exa', enabled: true }
     ]
   })
   
@@ -87,7 +87,10 @@ export default function Home() {
       display: 'flex', 
       alignItems: 'flex-end',
       justifyContent: 'center',
-      padding: '20px'
+      padding: '20px',
+      backgroundColor: '#0a0a0a',
+      backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(120, 120, 120, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(120, 120, 120, 0.1) 0%, transparent 50%)',
+      minHeight: '100vh'
     }}>
       <div style={{ height: '95%', display: 'flex', alignItems: 'flex-end' }}>
         <ChatMain
