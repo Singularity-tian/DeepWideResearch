@@ -177,7 +177,8 @@ async def execute_tool_calls(
 async def run_research_llm_driven(
     topic: str, 
     cfg, 
-    api_keys: Optional[dict] = None
+    api_keys: Optional[dict] = None,
+    mcp_config: Optional[Dict[str, List[str]]] = None
 ) -> Dict[str, str]:
     """LLM 驱动的研究循环 - 使用 unified_research_prompt
     
@@ -190,10 +191,15 @@ async def run_research_llm_driven(
         empty_json = json.dumps({"topic": "", "tool_calls": []}, ensure_ascii=False)
         return {"raw_notes": empty_json}
     
-    # 1. 收集 MCP 工具
+    # 1. 收集 MCP 工具 - 使用前端传来的配置或默认配置
     print("\n🔍 Collecting tools from MCP servers...")
     registry = get_registry()
-    mcp_tools, mcp_clients = await registry.collect_tools(MCP_TOOLS_CONFIG)
+    
+    # 使用前端传来的 MCP 配置，如果没有则使用默认配置
+    effective_config = mcp_config or MCP_TOOLS_CONFIG
+    print(f"📋 Using MCP config: {effective_config}")
+    
+    mcp_tools, mcp_clients = await registry.collect_tools(effective_config)
     
     if not mcp_tools:
         print("⚠️ No tools available")

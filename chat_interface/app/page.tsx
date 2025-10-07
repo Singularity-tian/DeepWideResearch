@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import dynamic from 'next/dynamic'
 import DeepWideGrid from './DeepWideGrid'
-import McpConfig from './McpConfig'
+import McpConfig, { McpConfigValue } from './McpConfig'
  
 
 // 动态导入本地 ChatMain 组件，禁用 SSR 以避免 document 未定义错误
@@ -23,30 +23,90 @@ export default function Home() {
   const [messageHistory, setMessageHistory] = useState<ChatMessage[]>([])
   const [researchParams, setResearchParams] = useState<{ deep: number; wide: number }>({ deep: 0.5, wide: 0.5 })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [mcpConfig, setMcpConfig] = useState({
+  const [mcpConfig, setMcpConfig] = useState<McpConfigValue>({
     services: [
-      { name: 'Tavily', enabled: true },
-      { name: 'Exa', enabled: true }
+      { 
+        name: 'Tavily', 
+        enabled: true, 
+        tools: [
+          { name: 'tavily-search', enabled: true, description: 'Web search using Tavily' }
+        ]
+      },
+      { 
+        name: 'Exa', 
+        enabled: true, 
+        tools: [
+          { name: 'web_search_exa', enabled: true, description: 'AI-powered web search using Exa' }
+        ]
+      }
     ]
   })
+
+  // 添加调试信息 - 显示当前参数状态
+  React.useEffect(() => {
+    console.log('📊 Current research params:', researchParams)
+  }, [researchParams])
+
+  // 添加调试信息 - 显示当前 MCP 配置状态
+  React.useEffect(() => {
+    const enabledTools = mcpConfig.services.reduce((acc, service) => {
+      const tools = service.tools
+        .filter(tool => tool.enabled)
+        .map(tool => tool.name)
+      if (tools.length > 0) {
+        acc[service.name.toLowerCase()] = tools
+      }
+      return acc
+    }, {} as Record<string, string[]>)
+    
+    console.log('🔧 Current MCP config:', {
+      allServices: mcpConfig.services,
+      enabledTools: enabledTools
+    })
+  }, [mcpConfig])
   
 
   const handleSendMessage = async (message: string) => {
     try {
+      // 构造请求数据
+      const requestData = {
+        message: {
+          query: message,
+          deepwide: {
+            deep: researchParams.deep,
+            wide: researchParams.wide
+          },
+            mcp: mcpConfig.services.reduce((acc, service) => {
+              // 只包含启用的工具
+              const enabledTools = service.tools
+                .filter(tool => tool.enabled)
+                .map(tool => tool.name)
+              
+              if (enabledTools.length > 0) {
+                // 转换为后端期望的格式：{服务名小写: [启用的工具列表]}
+                acc[service.name.toLowerCase()] = enabledTools
+              }
+              return acc
+            }, {} as Record<string, string[]>)
+        },
+        history: messageHistory  // 发送完整的对话历史（包含 role 和 content）
+      }
+
+      // 打印调试信息
+      console.log('🚀 Sending request to backend:')
+      console.log('📝 Query:', message)
+      console.log('📊 Deep/Wide params:', requestData.message.deepwide)
+      console.log('🔧 MCP services:', requestData.message.mcp)
+      console.log('📜 History length:', messageHistory.length)
+      console.log('📦 Complete request data:', JSON.stringify(requestData, null, 2))
+
       // 调用后端 Python API - 使用新的消息格式
       const response = await fetch('http://localhost:8000/api/research', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          message: {
-            query: message,
-            deep: researchParams.deep,
-            wide: researchParams.wide
-          },
-          history: messageHistory  // 发送完整的对话历史（包含 role 和 content）
-        }),
+        body: JSON.stringify(requestData),
       })
 
       if (!response.ok) {
@@ -126,7 +186,7 @@ export default function Home() {
                     position: 'absolute',
                     bottom: '52px',
                     left: '0',
-                    width: '195px',
+                    width: '240px',
                   background: 'linear-gradient(135deg, rgba(25,25,25,0.98) 0%, rgba(15,15,15,0.98) 100%)',
                   border: '1px solid #2a2a2a',
                   borderRadius: '14px',
@@ -147,7 +207,10 @@ export default function Home() {
                 <div style={{ padding: '14px' }}>
                   <DeepWideGrid
                     value={researchParams}
-                    onChange={setResearchParams}
+                    onChange={(newParams) => {
+                      console.log('🔄 Page: Updating research params:', newParams)
+                      setResearchParams(newParams)
+                    }}
                     cellSize={20}
                     innerBorder={2}
                     outerPadding={4}

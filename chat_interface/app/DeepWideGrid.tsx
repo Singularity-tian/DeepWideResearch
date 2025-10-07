@@ -155,7 +155,11 @@ export default function DeepWideGrid({
             role="button"
             aria-label={`Set Wide ${(col * step).toFixed(2)}, Deep ${(row * step).toFixed(2)}`}
             aria-pressed={covered}
-            onClick={() => onChange({ deep: row * step, wide: col * step })}
+            onClick={() => {
+              const newValue = { deep: row * step, wide: col * step }
+              console.log('🎯 DeepWideGrid: Setting new values:', newValue)
+              onChange(newValue)
+            }}
             onMouseEnter={() => setHoverCell({ row, col })}
             onMouseLeave={() => setHoverCell(null)}
             style={{ ...cellBaseStyle, backgroundColor: bg }}

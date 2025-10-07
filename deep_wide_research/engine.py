@@ -31,9 +31,9 @@ def today_str() -> str:
     return f"{now:%a} {now:%b} {now.day}, {now:%Y}"
 
 
-async def _run_researcher(topic: str, cfg: Configuration, api_keys: Optional[dict]) -> Dict[str, str]:
+async def _run_researcher(topic: str, cfg: Configuration, api_keys: Optional[dict], mcp_config: Optional[Dict[str, List[str]]] = None) -> Dict[str, str]:
     # Delegate to LLM-driven tool-calling strategy
-    return await run_research_llm_driven(topic=topic, cfg=cfg, api_keys=api_keys)
+    return await run_research_llm_driven(topic=topic, cfg=cfg, api_keys=api_keys, mcp_config=mcp_config)
 
 
 # removed supervisor_tools for single-agent design
@@ -61,7 +61,7 @@ class Configuration:
         self.mcp_prompt = None
 
 
-async def run_deep_research(user_messages: List[str], cfg: Optional[Configuration] = None, api_keys: Optional[dict] = None) -> dict:
+async def run_deep_research(user_messages: List[str], cfg: Optional[Configuration] = None, api_keys: Optional[dict] = None, mcp_config: Optional[Dict[str, List[str]]] = None) -> dict:
     """完整的深度研究流程：Research → Generate
     
     Args:
@@ -88,7 +88,7 @@ async def run_deep_research(user_messages: List[str], cfg: Optional[Configuratio
     # Phase 1: Research - 使用 unified_research_prompt
     # ============================================================
     print("\n🔬 Starting Research Phase...")
-    research = await _run_researcher(research_topic, cfg, api_keys)
+    research = await _run_researcher(research_topic, cfg, api_keys, mcp_config)
     raw_notes = research.get("raw_notes", "") if research else ""
     state["notes"] = [raw_notes] if raw_notes else []
     # 将 raw_notes JSON 也注入 messages，供生成阶段作为上下文

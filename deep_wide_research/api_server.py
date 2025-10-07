@@ -42,14 +42,17 @@ class Message(BaseModel):
     content: str
 
 
+class DeepWideParams(BaseModel):
+    """深度和广度参数模型"""
+    deep: float = 0.5  # 深度参数 (0-1)，控制研究的深度
+    wide: float = 0.5  # 广度参数 (0-1)，控制研究的广度
+
+
 class ResearchMessage(BaseModel):
     """研究消息模型 - 包含查询和参数"""
     query: str  # 用户的查询文本
-    deep: float = 0.5  # 深度参数 (0-1)，控制研究的深度
-    wide: float = 0.5  # 广度参数 (0-1)，控制研究的广度
-    # 可以添加更多参数，例如：
-    # max_iterations: int = 8
-    # creativity: float = 0.5
+    deepwide: DeepWideParams = DeepWideParams()  # 深度广度参数对象
+    mcp: Dict[str, List[str]] = {}  # MCP配置：{服务名: [工具列表]}
 
 
 class ResearchRequest(BaseModel):
@@ -100,24 +103,26 @@ async def research(request: ResearchRequest):
         # 创建配置
         cfg = Configuration()
         
-        # 根据 deep 和 wide 参数调整配置
+        # 根据 deepwide 参数调整配置
         # deep: 控制研究深度 (迭代次数)
         # wide: 控制研究广度 (每次搜索的范围)
         # 这里可以根据需要调整配置参数
-        # 例如：cfg.max_react_tool_calls = int(5 + request.message.deep * 10)
+        # 例如：cfg.max_react_tool_calls = int(5 + request.message.deepwide.deep * 10)
         
         # 执行研究
         print(f"\n🔍 Received research request: {request.message.query}")
         print(f"📊 Research parameters:")
-        print(f"   - Deep: {request.message.deep} (0-1)")
-        print(f"   - Wide: {request.message.wide} (0-1)")
+        print(f"   - Deep: {request.message.deepwide.deep} (0-1)")
+        print(f"   - Wide: {request.message.deepwide.wide} (0-1)")
+        print(f"   - MCP Services: {request.message.mcp}")
         print(f"📜 Conversation history: {len(history_messages)} messages")
         print(f"👤 User messages: {len(user_messages)} messages")
         
         result = await run_deep_research(
             user_messages=user_messages,
             cfg=cfg,
-            api_keys=None  # 将从环境变量读取
+            api_keys=None,  # 将从环境变量读取
+            mcp_config=request.message.mcp  # 传递 MCP 配置
         )
         
         # 提取最终报告
