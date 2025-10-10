@@ -38,6 +38,9 @@ export interface ChatInterfaceProps {
   showHeaderIcon?: boolean
   // Optional area above the input for user-defined components (toolbar, filters, etc.)
   aboveInput?: React.ReactNode
+  // Optional slots in the header for user-defined components
+  headerLeft?: React.ReactNode
+  headerRight?: React.ReactNode
 }
 
 // 添加一个全局标识符来避免重复添加样式
@@ -84,7 +87,9 @@ export default function ChatInterface({
   headerIcon,
   headerIconSize = 26,
   showHeaderIcon = true,
-  aboveInput
+  aboveInput,
+  headerLeft,
+  headerRight
 }: ChatInterfaceProps = {}) {
   const resolvedBg = bg ?? backgroundColor
   // Create default initial messages using welcomeMessage
@@ -97,7 +102,10 @@ export default function ChatInterface({
     }
   ]
 
-  const [messages, setMessages] = useState<Message[]>(initialMessages || defaultInitialMessages)
+  const [messages, setMessages] = useState<Message[]>(() => {
+    console.log('🎬 ChatInterface initializing with messages:', initialMessages?.length || 0)
+    return initialMessages || defaultInitialMessages
+  })
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
@@ -105,6 +113,11 @@ export default function ChatInterface({
   const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  
+  // Welcome message streaming effect
+  const [displayedWelcome, setDisplayedWelcome] = useState('')
+  const [isStreamingWelcome, setIsStreamingWelcome] = useState(false)
+  const [visibleQuestionsCount, setVisibleQuestionsCount] = useState(0)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -113,6 +126,22 @@ export default function ChatInterface({
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // 🔧 同步 initialMessages 的变化（当父组件更新时）
+  useEffect(() => {
+    console.log('🔄 ChatInterface useEffect triggered, initialMessages:', initialMessages?.length)
+    if (initialMessages !== undefined) {
+      if (initialMessages.length === 0) {
+        console.log('➡️ Setting default welcome message')
+        // 如果传入空数组，表示新会话，重置为默认欢迎消息
+        setMessages(defaultInitialMessages)
+      } else {
+        console.log('➡️ Setting messages from initialMessages:', initialMessages.length)
+        // 直接更新为新的 messages
+        setMessages(initialMessages)
+      }
+    }
+  }, [initialMessages])
 
   // 注入 spin 动画
   useEffect(() => {
@@ -166,6 +195,17 @@ export default function ChatInterface({
       .puppychat-textarea::-webkit-scrollbar-thumb:hover {
         background-color: rgba(120, 120, 120, 0.9);
       }
+
+      @keyframes slideInFromRight {
+        from {
+          opacity: 0;
+          transform: translateX(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
     `)
   }, [])
 
@@ -185,6 +225,49 @@ export default function ChatInterface({
   useEffect(() => {
     autoResizeTextarea()
   }, [])
+
+  // Welcome message streaming effect - triggered when showing default welcome
+  useEffect(() => {
+    const shouldShowWelcome = messages.length === 1 && messages[0].sender === 'bot' && !isTyping
+    if (!shouldShowWelcome) {
+      setIsStreamingWelcome(false)
+      setDisplayedWelcome('')
+      setVisibleQuestionsCount(0)
+      return
+    }
+
+    const fullMessage = welcomeMessage
+    setIsStreamingWelcome(true)
+    setDisplayedWelcome('')
+    setVisibleQuestionsCount(0)
+
+    let currentIndex = 0
+    const typingSpeed = 8 // ms per character
+
+    const typeInterval = setInterval(() => {
+      if (currentIndex < fullMessage.length) {
+        setDisplayedWelcome(fullMessage.slice(0, currentIndex + 1))
+        currentIndex++
+      } else {
+        clearInterval(typeInterval)
+        setIsStreamingWelcome(false)
+        // Start showing questions one by one after welcome finishes
+        let questionIndex = 0
+        const questionInterval = setInterval(() => {
+          if (questionIndex < recommendedQuestions.length) {
+            setVisibleQuestionsCount(questionIndex + 1)
+            questionIndex++
+          } else {
+            clearInterval(questionInterval)
+          }
+        }, 150) // 150ms delay between each question
+      }
+    }, typingSpeed)
+
+    return () => {
+      clearInterval(typeInterval)
+    }
+  }, [messages.length, isTyping, welcomeMessage, recommendedQuestions.length])
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || disabled) return
@@ -439,7 +522,12 @@ export default function ChatInterface({
       {/* Header */}
       {showHeader && (
         <div style={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', height: `${headerIconSize}px` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', height: `${headerIconSize}px` }}>
+          {headerLeft && (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              {headerLeft}
+            </div>
+          )}
           {showHeaderIcon && (
             <>
               {headerIcon ? (
@@ -467,39 +555,50 @@ export default function ChatInterface({
             <div style={{ fontSize: '14px', fontWeight: 'normal', color: '#8b8b8b', margin: 0, height: `${headerIconSize}px`, lineHeight: `${headerIconSize}px` }}>{title}</div>
             </div>
           </div>
-          <button
-            onClick={clearChat}
-            style={{
-              width: '26px',
-              height: '26px',
-              padding: '0',
-              borderRadius: '8px',
-              backgroundColor: 'transparent',
-              color: '#8b8b8b',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Clear chat history"
-          >
-            <Trash2 style={{ width: '16px', height: '16px' }} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {headerRight && (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {headerRight}
+              </div>
+            )}
+            <button
+              onClick={clearChat}
+              style={{
+                width: '26px',
+                height: '26px',
+                padding: '0',
+                borderRadius: '8px',
+                backgroundColor: 'transparent',
+                color: '#8b8b8b',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Clear chat history"
+            >
+              <Trash2 style={{ width: '16px', height: '16px' }} />
+            </button>
+          </div>
         </div>
       )}
 
       {/* Messages */}
       <div style={styles.messagesContainer} className="puppychat-messages">
-        {messages.map((message, index) => (
-          message.sender === 'bot' ? (
+        {messages.map((message, index) => {
+          // If it's the welcome message and we're streaming it, show the partial content
+          const isWelcomeMessage = index === 0 && message.sender === 'bot' && messages.length === 1
+          const displayContent = (isWelcomeMessage && isStreamingWelcome) ? displayedWelcome : message.content
+          
+          return message.sender === 'bot' ? (
             <BotMessage
               key={message.id}
-              message={message}
+              message={{ ...message, content: displayContent }}
               showAvatar={false}
               streamingStatus={index === messages.length - 1 && isStreaming ? streamingStatus : undefined}
-              isStreaming={index === messages.length - 1 && isStreaming}
+              isStreaming={(index === messages.length - 1 && isStreaming) || (isWelcomeMessage && isStreamingWelcome)}
             />
           ) : (
             <UserMessage
@@ -508,7 +607,7 @@ export default function ChatInterface({
               showAvatar={false}
             />
           )
-        ))}
+        })}
         
         {/* Recommended Questions in Message Area */}
         {shouldShowRecommendedQuestions && (
@@ -519,7 +618,7 @@ export default function ChatInterface({
             marginTop: '20px',
             alignItems: 'flex-end'
           }}>
-            {recommendedQuestions.map((question, index) => (
+            {recommendedQuestions.slice(0, visibleQuestionsCount).map((question, index) => (
               <div
                 key={index}
                 onClick={() => handleRecommendedQuestionClick(question)}
@@ -538,7 +637,10 @@ export default function ChatInterface({
                   overflow: 'hidden',
                   userSelect: 'none',
                   boxShadow: '0 2px 8px rgba(74, 144, 226, 0.1)',
-                  fontWeight: '500'
+                  fontWeight: '500',
+                  animation: 'slideInFromRight 300ms ease-out forwards',
+                  animationDelay: `${index * 50}ms`,
+                  opacity: 0
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'linear-gradient(135deg, rgba(74, 144, 226, 0.2), rgba(74, 144, 226, 0.15))'

@@ -21,8 +21,8 @@ export interface BotMessageProps {
   message: Message
   showAvatar?: boolean
   isTyping?: boolean
-  streamingStatus?: string
-  isStreaming?: boolean
+  streamingStatus?: string  // For status updates like "thinking", "using tools", etc.
+  isStreaming?: boolean      // For report content streaming
 }
 
 export default function BotMessage({ message, showAvatar = true, isTyping = false, streamingStatus, isStreaming = false }: BotMessageProps) {
@@ -108,7 +108,7 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
     copyButton: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '4px', color: '#a0a0a0', cursor: 'pointer' },
     typingDots: { display: 'flex', alignItems: 'center', gap: '8px', height: '20px' },
     dot: { width: '8px', height: '8px', backgroundColor: '#4a90e2', borderRadius: '50%', animation: 'pulse 1s infinite' },
-    streamingStatus: { 
+    statusStreaming: { 
       fontSize: '14px', 
       color: 'transparent',
       marginBottom: '8px',
@@ -118,6 +118,13 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
       WebkitBackgroundClip: 'text',
       backgroundSize: '200% 100%',
       animation: 'textFlash 2s linear infinite',
+      transition: 'opacity 0.3s ease-in-out'
+    },
+    reportStreaming: {
+      fontSize: '14px',
+      color: '#d2d2d2',
+      lineHeight: '1.6',
+      whiteSpace: 'pre-wrap',
       transition: 'opacity 0.3s ease-in-out'
     }
   }
@@ -136,30 +143,35 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
             <div style={{ ...styles.dot, animationDelay: '0.6s' }}></div>
           </div>
         ) : (
-          <div style={styles.content}>
-            {isStreaming && streamingStatus && (
-              <div style={styles.streamingStatus}>
+          <>
+            {/* Status streaming with flash animation (thinking, using tools, etc.) */}
+            {streamingStatus && (
+              <div style={styles.statusStreaming}>
                 {streamingStatus}
               </div>
             )}
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                p: ({ ...props }) => (<p style={{ margin: 0, lineHeight: '1.6' }} {...props} />),
-                h1: ({ ...props }) => (<div role="heading" aria-level={1} style={styles.h1} {...props} />),
-                h2: ({ ...props }) => (<div role="heading" aria-level={2} style={styles.h2} {...props} />),
-                h3: ({ ...props }) => (<div role="heading" aria-level={3} style={styles.h3} {...props} />),
-                table: ({ ...props }) => (<table style={styles.table} {...props} />),
-                thead: ({ ...props }) => (<thead style={styles.thead} {...props} />),
-                tbody: ({ ...props }) => (<tbody {...props} />),
-                tr: ({ ...props }) => (<tr style={styles.tr} {...props} />),
-                th: ({ ...props }) => (<th style={styles.th} {...props} />),
-                td: ({ ...props }) => (<td style={styles.td} {...props} />)
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
-          </div>
+            
+            {/* Message content - with or without report streaming */}
+            <div style={isStreaming && !streamingStatus ? styles.reportStreaming : styles.content}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ ...props }) => (<p style={{ margin: 0, lineHeight: '1.6' }} {...props} />),
+                  h1: ({ ...props }) => (<div role="heading" aria-level={1} style={styles.h1} {...props} />),
+                  h2: ({ ...props }) => (<div role="heading" aria-level={2} style={styles.h2} {...props} />),
+                  h3: ({ ...props }) => (<div role="heading" aria-level={3} style={styles.h3} {...props} />),
+                  table: ({ ...props }) => (<table style={styles.table} {...props} />),
+                  thead: ({ ...props }) => (<thead style={styles.thead} {...props} />),
+                  tbody: ({ ...props }) => (<tbody {...props} />),
+                  tr: ({ ...props }) => (<tr style={styles.tr} {...props} />),
+                  th: ({ ...props }) => (<th style={styles.th} {...props} />),
+                  td: ({ ...props }) => (<td style={styles.td} {...props} />)
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          </>
         )}
 
         {!isTyping && (

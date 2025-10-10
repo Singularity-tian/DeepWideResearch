@@ -77,7 +77,8 @@ export default function DeepWideGrid({
     background: 'rgba(10, 10, 10, 0.6)',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.05)',
     marginTop: '26px',
-    marginLeft: '40px'
+    marginLeft: '40px',
+    cursor: 'default'
   }
 
   const gridStyle: React.CSSProperties = {
@@ -112,13 +113,12 @@ export default function DeepWideGrid({
 
   const dotStyle: React.CSSProperties = {
     position: 'absolute',
-    right: '-3px',
-    bottom: '-3px',
-    width: '6px',
-    height: '6px',
+    right: '-4px',
+    bottom: '-4px',
+    width: '8px',
+    height: '8px',
     borderRadius: '50%',
     backgroundColor: '#e6e6e6',
-    boxShadow: '0 0 0 1px rgba(200,200,200,0.9), 0 2px 6px rgba(0,0,0,0.35)',
     pointerEvents: 'none'
   }
 
@@ -142,7 +142,7 @@ export default function DeepWideGrid({
             onClick={() => onChange({ deep: (row + 1) * step, wide: (col + 1) * step })}
             onMouseEnter={() => setHoverCell({ row, col })}
             onMouseLeave={() => setHoverCell(null)}
-            style={{ ...cellBaseStyle, backgroundColor }}
+            style={{ ...cellBaseStyle, backgroundColor, zIndex: isSelected ? 10 : 1 }}
           >
             {isSelected && <div style={dotStyle} />}
           </div>
