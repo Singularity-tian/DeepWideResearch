@@ -152,6 +152,15 @@ export default function ChatInterface({
         console.log('➡️ Setting messages from initialMessages:', initialMessages.length)
         // 直接更新为新的 messages
         setMessages(initialMessages)
+        
+        // 🔧 清除 typing/streaming 状态，避免显示两条消息
+        // 只有当最后一条消息是 bot 消息时，才清除 typing indicator
+        const lastMessage = initialMessages[initialMessages.length - 1]
+        if (lastMessage && lastMessage.sender === 'bot') {
+          setIsTyping(false)
+          setIsStreaming(false)
+          setStreamingStatus('')
+        }
       }
     }
   }, [initialMessages])
@@ -332,15 +341,16 @@ export default function ChatInterface({
       } else {
         await new Promise(resolve => setTimeout(resolve, 1500))
         response = `I received your message: "${currentInput}". This is a simulated response.`
+        
+        // Only add message if there's no onSendMessage callback (standalone mode)
+        const botMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: response,
+          sender: 'bot',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, botMessage])
       }
-
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: response,
-        sender: 'bot',
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, botMessage])
     } catch (error) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -388,22 +398,34 @@ export default function ChatInterface({
     setIsTyping(true)
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
       let response: string
       if (onSendMessage) {
-        response = await onSendMessage(question)
+        // Create streaming callback
+        const onStreamUpdate = (content: string, streaming: boolean = true) => {
+          if (streaming) {
+            setIsTyping(false)  // 关闭typing状态
+            setStreamingStatus(content)
+            setIsStreaming(true)
+          } else {
+            setIsStreaming(false)
+            setStreamingStatus('')
+          }
+        }
+        
+        response = await onSendMessage(question, onStreamUpdate)
       } else {
+        await new Promise(resolve => setTimeout(resolve, 1500))
         response = `I received your question: "${question}". This is a simulated response.`
+        
+        // Only add message if there's no onSendMessage callback (standalone mode)
+        const botMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: response,
+          sender: 'bot',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, botMessage])
       }
-
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: response,
-        sender: 'bot',
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, botMessage])
     } catch (error) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -414,6 +436,8 @@ export default function ChatInterface({
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsTyping(false)
+      setIsStreaming(false)
+      setStreamingStatus('')
     }
   }
 
@@ -626,8 +650,7 @@ export default function ChatInterface({
               key={message.id}
               message={{ ...message, content: displayContent }}
               showAvatar={false}
-              streamingStatus={index === messages.length - 1 && isStreaming ? streamingStatus : undefined}
-              isStreaming={(index === messages.length - 1 && isStreaming) || (isWelcomeMessage && isStreamingWelcome)}
+              isStreaming={isWelcomeMessage && isStreamingWelcome}
             />
           ) : (
             <UserMessage
@@ -729,14 +752,14 @@ export default function ChatInterface({
           <BotMessage 
             message={{
               id: 'typing',
-              content: '',
+              content: streamingStatus || '',
               sender: 'bot',
               timestamp: new Date()
             }}
             isTyping={isTyping && !isStreaming}
-            showAvatar={false}
             streamingStatus={isStreaming ? streamingStatus : undefined}
             isStreaming={isStreaming}
+            showAvatar={false}
           />
         )}
         <div ref={messagesEndRef} />

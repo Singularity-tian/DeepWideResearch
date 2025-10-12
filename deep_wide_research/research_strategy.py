@@ -180,7 +180,8 @@ async def run_research_llm_driven(
     api_keys: Optional[dict] = None,
     mcp_config: Optional[Dict[str, List[str]]] = None,
     deep_param: float = 0.5,
-    wide_param: float = 0.5
+    wide_param: float = 0.5,
+    status_callback=None
 ) -> Dict[str, str]:
     """LLM 驱动的研究循环 - 使用 unified_research_prompt
     
@@ -188,6 +189,7 @@ async def run_research_llm_driven(
         topic: 研究主题
         cfg: 配置对象
         api_keys: API 密钥字典
+        status_callback: 状态回调函数，用于发送实时状态更新
     """
     if not topic:
         empty_json = json.dumps({"topic": "", "tool_calls": []}, ensure_ascii=False)
@@ -287,6 +289,13 @@ async def run_research_llm_driven(
         
         # 添加助手消息到对话
         messages.append({"role": "assistant", "content": resp.content})
+        
+        # 发送状态更新 - 告诉前端正在使用哪些工具
+        if status_callback and tool_calls:
+            tools_being_used = [tc["tool"] for tc in tool_calls]
+            unique_tools = list(set(tools_being_used))  # 去重
+            tools_text = ", ".join(unique_tools[:3])  # 最多显示3个工具
+            await status_callback(f"using {tools_text}...")
         
         # 执行所有工具调用
         tool_results = await execute_tool_calls(tool_calls, mcp_clients)

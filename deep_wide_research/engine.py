@@ -31,9 +31,9 @@ def today_str() -> str:
     return f"{now:%a} {now:%b} {now.day}, {now:%Y}"
 
 
-async def _run_researcher(topic: str, cfg: Configuration, api_keys: Optional[dict], mcp_config: Optional[Dict[str, List[str]]] = None, deep_param: float = 0.5, wide_param: float = 0.5) -> Dict[str, str]:
+async def _run_researcher(topic: str, cfg: Configuration, api_keys: Optional[dict], mcp_config: Optional[Dict[str, List[str]]] = None, deep_param: float = 0.5, wide_param: float = 0.5, status_callback=None) -> Dict[str, str]:
     # Delegate to LLM-driven tool-calling strategy
-    return await run_research_llm_driven(topic=topic, cfg=cfg, api_keys=api_keys, mcp_config=mcp_config, deep_param=deep_param, wide_param=wide_param)
+    return await run_research_llm_driven(topic=topic, cfg=cfg, api_keys=api_keys, mcp_config=mcp_config, deep_param=deep_param, wide_param=wide_param, status_callback=status_callback)
 
 
 
@@ -87,20 +87,39 @@ async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Confi
     
     # 让用户看到thinking状态
     import asyncio
-    await asyncio.sleep(2.5)
+    await asyncio.sleep(1.5)
     
-    # 显示工具使用状态
-    if mcp_config:
-        enabled_tools = []
-        for service, tools in mcp_config.items():
-            enabled_tools.extend(tools)
-        if enabled_tools:
-            tools_text = ", ".join(enabled_tools[:2])
-            yield {"action": "using_tools", "message": f"using {tools_text}..."}
-            # 让用户看到工具使用状态
-            await asyncio.sleep(2.0)
+    # 创建一个队列来接收状态更新
+    from asyncio import Queue
+    status_queue = Queue()
     
-    research = await _run_researcher(research_topic, cfg, api_keys, mcp_config, deep_param, wide_param)
+    # 创建状态回调函数
+    async def status_callback(message: str):
+        await status_queue.put(message)
+    
+    # 启动研究任务
+    research_task = asyncio.create_task(_run_researcher(research_topic, cfg, api_keys, mcp_config, deep_param, wide_param, status_callback))
+    
+    # 从队列中读取并yield状态更新
+    while not research_task.done():
+        try:
+            # 尝试获取状态更新（短超时）
+            message = await asyncio.wait_for(status_queue.get(), timeout=0.1)
+            yield {"action": "using_tools", "message": message}
+        except asyncio.TimeoutError:
+            # 没有消息，继续等待
+            continue
+    
+    # 研究完成后，处理队列中的剩余消息
+    while not status_queue.empty():
+        try:
+            message = status_queue.get_nowait()
+            yield {"action": "using_tools", "message": message}
+        except asyncio.QueueEmpty:
+            break
+    
+    # 获取研究结果
+    research = await research_task
     raw_notes = research.get("raw_notes", "") if research else ""
     state["notes"] = [raw_notes] if raw_notes else []
     

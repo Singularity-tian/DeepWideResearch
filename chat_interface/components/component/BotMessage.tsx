@@ -44,6 +44,32 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
         50% { opacity: 1; }
       }
     `)
+    
+    // Inject citation styles
+    StyleManager.inject('citation-styles', `
+      .citation-reference {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #4a90e2;
+        color: #ffffff;
+        font-size: 10px;
+        font-weight: 600;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        margin: 0 2px;
+        vertical-align: middle;
+        line-height: 1;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .citation-reference:hover {
+        background: #5aa0f2;
+        color: #ffffff;
+        transform: scale(1.1);
+      }
+    `)
   }, [])
 
   const handleCopy = async () => {
@@ -68,11 +94,23 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
 
   const styles: { [key: string]: CSSProperties } = {
     container: { display: 'flex', alignItems: 'flex-start', gap: '0px', width: '100%', flexDirection: 'row' },
-    messageWrapper: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '85%' },
-    content: { fontSize: '14px', color: '#d2d2d2', whiteSpace: 'pre-wrap', lineHeight: '1.6', margin: 0, textAlign: 'left' },
+    messageWrapper: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '85%', minWidth: 0 },
+    content: { fontSize: '14px', color: '#d2d2d2', whiteSpace: 'pre-wrap', lineHeight: '1.6', margin: 0, textAlign: 'left', wordBreak: 'break-word', overflowWrap: 'break-word', width: '100%' },
     h1: { fontSize: '18px', fontWeight: 700, lineHeight: '1.6', margin: '0 0 8px 0' },
     h2: { fontSize: '16px', fontWeight: 700, lineHeight: '1.6', margin: '0 0 6px 0' },
     h3: { fontSize: '15px', fontWeight: 600, lineHeight: '1.6', margin: '0 0 4px 0' },
+    link: {
+      color: '#4a90e2',
+      textDecoration: 'underline',
+      textDecorationColor: '#4a90e2',
+      transition: 'all 0.2s ease',
+      cursor: 'pointer',
+      fontWeight: 500,
+      wordBreak: 'break-word' as const,
+      overflowWrap: 'break-word' as const,
+      display: 'inline',
+      maxWidth: '100%'
+    },
     table: { 
       borderCollapse: 'collapse', 
       width: '100%', 
@@ -125,7 +163,10 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
       color: '#d2d2d2',
       lineHeight: '1.6',
       whiteSpace: 'pre-wrap',
-      transition: 'opacity 0.3s ease-in-out'
+      transition: 'opacity 0.3s ease-in-out',
+      wordBreak: 'break-word',
+      overflowWrap: 'break-word',
+      width: '100%'
     }
   }
 
@@ -152,14 +193,48 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
             )}
             
             {/* Message content - with or without report streaming */}
-            <div style={isStreaming && !streamingStatus ? styles.reportStreaming : styles.content}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  p: ({ ...props }) => (<p style={{ margin: 0, lineHeight: '1.6' }} {...props} />),
+            {/* Only show content if there's no streamingStatus or if there's actual message content */}
+            {(!streamingStatus || message.content !== streamingStatus) && message.content && (
+              <div style={isStreaming && !streamingStatus ? styles.reportStreaming : styles.content}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                  p: ({ children, ...props }) => {
+                    // Process children to enhance citation references
+                    const processChildren = (child: any): any => {
+                      if (typeof child === 'string') {
+                        const parts = child.split(/(\[\d+\])/g)
+                        return parts.map((part, i) => {
+                          const match = part.match(/^\[(\d+)\]$/)
+                          if (match) {
+                            return <span key={i} className="citation-reference">{match[1]}</span>
+                          }
+                          return part
+                        })
+                      }
+                      return child
+                    }
+                    
+                    const enhancedChildren = Array.isArray(children) 
+                      ? children.map(processChildren)
+                      : processChildren(children)
+                    
+                    return <p style={{ margin: 0, lineHeight: '1.6', wordBreak: 'break-word', overflowWrap: 'break-word' }} {...props}>{enhancedChildren}</p>
+                  },
                   h1: ({ ...props }) => (<div role="heading" aria-level={1} style={styles.h1} {...props} />),
                   h2: ({ ...props }) => (<div role="heading" aria-level={2} style={styles.h2} {...props} />),
                   h3: ({ ...props }) => (<div role="heading" aria-level={3} style={styles.h3} {...props} />),
+                  a: ({ href, children, ...props }) => (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.link}
+                      {...props}
+                    >
+                      {children}
+                    </a>
+                  ),
                   table: ({ ...props }) => (<table style={styles.table} {...props} />),
                   thead: ({ ...props }) => (<thead style={styles.thead} {...props} />),
                   tbody: ({ ...props }) => (<tbody {...props} />),
@@ -170,7 +245,8 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
               >
                 {message.content}
               </ReactMarkdown>
-            </div>
+              </div>
+            )}
           </>
         )}
 

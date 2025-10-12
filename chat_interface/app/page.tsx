@@ -28,10 +28,14 @@ export default function Home() {
   // 🎯 使用 SessionContext（包含会话列表、消息历史等）
   const {
     sessions,
+    chatHistory,
     currentSessionId,
+    tempSessionId,
     isLoading: isLoadingSessions,
     isLoadingChat,
     createSession,
+    createTempSession,
+    promoteTempSession,
     switchSession,
     deleteSession,
     addMessage,
@@ -47,6 +51,27 @@ export default function Home() {
   const [isSidebarMenuOpen, setIsSidebarMenuOpen] = useState(false)
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [showCreateSuccess, setShowCreateSuccess] = useState(false)
+  
+  // 🔑 用于 ChatMain 组件的稳定 key，避免在临时会话提升时重新挂载组件
+  const [chatComponentKey, setChatComponentKey] = useState<string>('default')
+  
+  // 当 currentSessionId 改变时更新 chatComponentKey（但排除临时会话提升的情况）
+  const previousSessionIdRef = React.useRef<string | null>(null)
+  React.useEffect(() => {
+    const prev = previousSessionIdRef.current
+    const current = currentSessionId
+    
+    // 如果是从临时会话切换到正式会话（提升），保持 key 不变
+    const isTempPromotion = prev?.startsWith('temp-') && current && !current.startsWith('temp-')
+    
+    if (!isTempPromotion && current !== prev && current) {
+      // 正常的会话切换，更新 key
+      console.log('🔑 Updating chatComponentKey from', prev, 'to', current)
+      setChatComponentKey(current)
+    }
+    
+    previousSessionIdRef.current = current
+  }, [currentSessionId])
   
   // 追踪 currentSessionId 变化
   React.useEffect(() => {
@@ -150,8 +175,9 @@ export default function Home() {
 
   // 将 Context 中的消息映射为 UI 消息
   const uiMessages: UIMessage[] = React.useMemo(() => {
-    const currentMessages = getCurrentMessages()
-    console.log('🔄 uiMessages recalculating, currentMessages length:', currentMessages.length)
+    // 直接从 chatHistory 获取当前会话的消息，避免 getCurrentMessages 的异步问题
+    const currentMessages = currentSessionId ? (chatHistory[currentSessionId] || []) : []
+    console.log('🔄 uiMessages recalculating, currentSessionId:', currentSessionId, 'messages:', currentMessages.length)
     const result = currentMessages.map((m, idx) => ({
       id: `${m.timestamp ?? idx}-${idx}`,
       content: m.content,
@@ -160,15 +186,19 @@ export default function Home() {
     }))
     console.log('✅ uiMessages result:', result.length, 'messages')
     return result
-  }, [getCurrentMessages, currentSessionId]) // 依赖 currentSessionId，会话切换时重新计算
+  }, [chatHistory, currentSessionId]) // 依赖 chatHistory 和 currentSessionId
 
   // 处理新建会话
   const handleCreateNewChat = async () => {
     if (isCreatingSession) return
     setIsCreatingSession(true)
     try {
-      const newId = await createSession('New Chat')
-      await switchSession(newId) // ✅ 使用 Context 的 switchSession
+      // 如果已经有临时会话，切换到它；否则创建新的临时会话
+      if (tempSessionId) {
+        await switchSession(tempSessionId)
+      } else {
+        createTempSession()
+      }
       setIsSidebarMenuOpen(false)
       // 显示成功反馈
       setShowCreateSuccess(true)
@@ -200,28 +230,36 @@ export default function Home() {
   const handleSendMessage = async (message: string, onStreamUpdate?: (content: string, isStreaming?: boolean) => void) => {
     // 🔒 关键：在函数开始时锁定当前的sessionId，防止切换会话导致的状态混乱
     let targetSessionId = currentSessionId
-    if (!targetSessionId) {
-      // 如果没有会话，创建一个新会话
-      targetSessionId = await createSession('New Chat')
+    
+    // 📝 在提升临时会话之前，先保存临时会话的消息
+    let messagesBeforePromotion: ChatMessage[] = []
+    if (tempSessionId && currentSessionId === tempSessionId) {
+      messagesBeforePromotion = chatHistory[tempSessionId] || []
+    }
+    
+    // 如果当前是临时会话，先将其提升为正式会话
+    if (tempSessionId && currentSessionId === tempSessionId) {
+      console.log('⬆️ Promoting temp session before sending message')
+      const firstUserMessage = message.slice(0, 60) // 使用第一条消息的前60个字符作为标题
+      targetSessionId = await promoteTempSession(firstUserMessage)
+    } else if (!targetSessionId) {
+      // 如果没有会话，创建一个新的正式会话
+      const firstUserMessage = message.slice(0, 60)
+      targetSessionId = await createSession(firstUserMessage)
       await switchSession(targetSessionId)
     }
     
     const userMessage: ChatMessage = { role: 'user', content: message, timestamp: Date.now() }
-    const currentMessages = getCurrentMessages()
+    
+    // 📝 如果刚提升了临时会话，使用提升前保存的消息；否则从 chatHistory 获取
+    const currentMessages = messagesBeforePromotion.length > 0 
+      ? messagesBeforePromotion 
+      : (chatHistory[targetSessionId] || [])
     const localHistoryBefore = [...currentMessages, userMessage]
     
     try {
       // ✅ 立即添加用户消息到 Context（UI 立即更新）
       addMessage(targetSessionId, userMessage)
-      
-      // 检查是否是第一条用户消息，如果是，立即更新会话标题
-      const isFirstUserMessage = currentMessages.filter(m => m.role === 'user').length === 0
-      if (isFirstUserMessage) {
-        // 立即保存标题
-        saveSessionToBackend(targetSessionId, localHistoryBefore).catch(e => 
-          console.warn('Failed to update title:', e)
-        )
-      }
 
       // 构造请求数据
       const requestData = {
@@ -307,6 +345,12 @@ export default function Home() {
       const completeHistory = [...localHistoryBefore, assistantMessage]
       await saveSessionToBackend(targetSessionId, completeHistory)
       
+      // 🔑 如果是从临时会话提升过来的，现在可以安全地更新 chatComponentKey 了
+      if (messagesBeforePromotion.length > 0 && targetSessionId !== chatComponentKey) {
+        console.log('🔑 Updating chatComponentKey after successful message, from', chatComponentKey, 'to', targetSessionId)
+        setChatComponentKey(targetSessionId)
+      }
+      
       return finalReport || currentStatus
       
     } catch (error) {
@@ -322,6 +366,12 @@ export default function Home() {
       await saveSessionToBackend(targetSessionId, completeHistoryWithError).catch(e => 
         console.warn('Failed to save error message:', e)
       )
+      
+      // 🔑 如果是从临时会话提升过来的，现在可以安全地更新 chatComponentKey 了
+      if (messagesBeforePromotion.length > 0 && targetSessionId !== chatComponentKey) {
+        console.log('🔑 Updating chatComponentKey after error message, from', chatComponentKey, 'to', targetSessionId)
+        setChatComponentKey(targetSessionId)
+      }
       
       return errorMessage
     }
@@ -447,7 +497,7 @@ export default function Home() {
               flexDirection: 'column'
             }}>
               <ChatMain
-                key={currentSessionId ?? 'default'}
+                key={chatComponentKey}
                 initialMessages={uiMessages.length > 0 ? uiMessages : undefined}
                 onSendMessage={handleSendMessage}
                 title="Deep Wide Research"
