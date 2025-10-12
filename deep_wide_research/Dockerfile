@@ -7,10 +7,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 安装 MCP 包
-COPY package.json .
-RUN npm install -g @tavily/mcp-server exa-mcp-server
-
 # 复制应用代码
 COPY . .
 
