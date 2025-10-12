@@ -93,23 +93,21 @@ class MCPRegistry:
                 name="tavily",
                 transport_type="stdio",
                 command="npx",
-                args=["-y", "tavily-mcp"],
+                args=["-y", "tavily-mcp@0.1.3"],
                 env={"TAVILY_API_KEY": tavily_api_key},
                 description="Tavily search MCP server - powerful web search"
             ))
         else:
             print("⚠️  Tavily MCP server skipped: TAVILY_API_KEY not found")
         
-        # Exa MCP Server
+        # Exa MCP Server (使用 HTTP 远程服务器)
         # 文档: https://docs.exa.ai/reference/exa-mcp
         exa_api_key = os.getenv("EXA_API_KEY")
         if exa_api_key:
             self.register(MCPServerConfig(
                 name="exa",
-                transport_type="stdio",
-                command="npx",
-                args=["-y", "exa-mcp-server"],
-                env={"EXA_API_KEY": exa_api_key},
+                transport_type="http",
+                server_url="https://mcp.exa.ai/mcp",
                 description="Exa search MCP server - AI-powered web search, code search, and research"
             ))
         else:
