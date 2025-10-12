@@ -85,38 +85,53 @@ class MCPRegistry:
     def _load_builtin_servers(self):
         """加载内置的 MCP servers (Tavily, Exa)"""
         
-        # 在 Railway 上跳过 MCP（因为 npx 不稳定）
-        if os.getenv("RAILWAY_ENVIRONMENT"):
-            print("⚠️  MCP servers skipped in Railway environment (use native search APIs)")
-            return
-        
-        # Tavily MCP Server (本地开发用)
-        # 文档: https://docs.tavily.com/documentation/mcp
+        # Tavily MCP Server
+        # Railway: 用远程 HTTP; 本地: 用 npx
         tavily_api_key = os.getenv("TAVILY_API_KEY")
         if tavily_api_key:
-            self.register(MCPServerConfig(
-                name="tavily",
-                transport_type="stdio",
-                command="npx",
-                args=["-y", "tavily-mcp@0.1.3"],
-                env={"TAVILY_API_KEY": tavily_api_key},
-                description="Tavily search MCP server - powerful web search"
-            ))
+            if os.getenv("RAILWAY_ENVIRONMENT"):
+                # Railway 上用远程 HTTP MCP
+                self.register(MCPServerConfig(
+                    name="tavily",
+                    transport_type="http",
+                    server_url=f"https://mcp.tavily.com/mcp/?tavilyApiKey={tavily_api_key}",
+                    description="Tavily search MCP server - powerful web search"
+                ))
+            else:
+                # 本地用 npx
+                self.register(MCPServerConfig(
+                    name="tavily",
+                    transport_type="stdio",
+                    command="npx",
+                    args=["-y", "tavily-mcp@0.1.3"],
+                    env={"TAVILY_API_KEY": tavily_api_key},
+                    description="Tavily search MCP server - powerful web search"
+                ))
         else:
             print("⚠️  Tavily MCP server skipped: TAVILY_API_KEY not found")
         
-        # Exa MCP Server (本地开发用)
-        # 文档: https://docs.exa.ai/reference/exa-mcp
+        # Exa MCP Server
+        # Railway: 用远程 HTTP; 本地: 用 npx
         exa_api_key = os.getenv("EXA_API_KEY")
         if exa_api_key:
-            self.register(MCPServerConfig(
-                name="exa",
-                transport_type="stdio",
-                command="npx",
-                args=["-y", "exa-mcp-server"],
-                env={"EXA_API_KEY": exa_api_key},
-                description="Exa search MCP server - AI-powered web search, code search, and research"
-            ))
+            if os.getenv("RAILWAY_ENVIRONMENT"):
+                # Railway 上用远程 HTTP MCP
+                self.register(MCPServerConfig(
+                    name="exa",
+                    transport_type="http",
+                    server_url="https://mcp.exa.ai/mcp",
+                    description="Exa search MCP server - AI-powered web search"
+                ))
+            else:
+                # 本地用 npx
+                self.register(MCPServerConfig(
+                    name="exa",
+                    transport_type="stdio",
+                    command="npx",
+                    args=["-y", "exa-mcp-server"],
+                    env={"EXA_API_KEY": exa_api_key},
+                    description="Exa search MCP server - AI-powered web search"
+                ))
         else:
             print("⚠️  Exa MCP server skipped: EXA_API_KEY not found")
     
@@ -418,9 +433,23 @@ class MCPClient:
             elif self.transport_type == "http":
                 import aiohttp
                 async with aiohttp.ClientSession() as http_sess:
-                    async with http_sess.get(f"{self._server_url}/tools") as resp:
+                    # MCP 使用 JSON-RPC 2.0 协议
+                    payload = {
+                        "jsonrpc": "2.0",
+                        "method": "tools/list",
+                        "params": {},
+                        "id": 1
+                    }
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    }
+                    async with http_sess.post(self._server_url, json=payload, headers=headers) as resp:
                         if resp.status == 200:
-                            return await resp.json()
+                            result = await resp.json()
+                            # JSON-RPC 响应格式：{"result": {"tools": [...]}}
+                            tools_data = result.get("result", {}).get("tools", [])
+                            return [{"name": t.get("name"), "description": t.get("description", ""), "inputSchema": t.get("inputSchema", {})} for t in tools_data]
                         else:
                             raise RuntimeError(f"HTTP request failed: {resp.status}")
             
@@ -486,12 +515,25 @@ class MCPClient:
             elif self.transport_type == "http":
                 import aiohttp
                 async with aiohttp.ClientSession() as http_sess:
-                    async with http_sess.post(
-                        f"{self._server_url}/tool/{tool_name}",
-                        json=arguments
-                    ) as resp:
+                    # MCP 使用 JSON-RPC 2.0 协议调用工具
+                    payload = {
+                        "jsonrpc": "2.0",
+                        "method": "tools/call",
+                        "params": {
+                            "name": tool_name,
+                            "arguments": arguments
+                        },
+                        "id": 2
+                    }
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    }
+                    async with http_sess.post(self._server_url, json=payload, headers=headers) as resp:
                         if resp.status == 200:
-                            return await resp.json()
+                            result = await resp.json()
+                            # JSON-RPC 响应：{"result": {"content": [...]}}
+                            return result.get("result", {})
                         else:
                             raise RuntimeError(f"HTTP request failed: {resp.status}")
             
