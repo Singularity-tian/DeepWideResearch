@@ -5,8 +5,15 @@
 ✅ **创建 Procfile** - Railway 启动配置
 ✅ **创建 railway.json** - 构建和部署配置  
 ✅ **重命名为 main.py** - Railway 自动识别的启动文件
-✅ **修复导入和 CORS** - 支持部署环境
+✅ **修复所有模块导入** - 支持三种导入方式（相对/绝对/独立）
+✅ **修复 CORS 配置** - 支持生产环境
 ✅ **完整部署文档** - 查看 DEPLOYMENT.md
+
+### 🔧 技术细节
+所有模块（`engine.py`, `research_strategy.py`, `generate_strategy.py`）现在支持：
+- 相对导入（开发环境作为包使用）
+- 绝对导入（从项目根目录）
+- 独立导入（Railway 部署环境）
 
 ## ⚡ 快速开始（3步）
 

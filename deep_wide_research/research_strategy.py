@@ -15,17 +15,23 @@ import sys
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-# 支持直接运行和模块导入
-if __name__ == "__main__":
-    from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from deep_wide_research.providers import chat_complete
-    from deep_wide_research.mcp_client import get_registry
-    from deep_wide_research.newprompt import create_unified_research_prompt
-else:
+# 支持直接运行和模块导入 - 尝试绝对导入和相对导入
+try:
+    # 尝试作为包的一部分导入（开发环境）
     from .providers import chat_complete
     from .mcp_client import get_registry
     from .newprompt import create_unified_research_prompt
+except ImportError:
+    # 尝试绝对导入（直接运行或部署环境）
+    try:
+        from deep_wide_research.providers import chat_complete
+        from deep_wide_research.mcp_client import get_registry
+        from deep_wide_research.newprompt import create_unified_research_prompt
+    except ImportError:
+        # 作为独立模块导入（Railway 部署环境）
+        from providers import chat_complete
+        from mcp_client import get_registry
+        from newprompt import create_unified_research_prompt
 
 
 # MCP 工具选择配置：{server_name: [tool_names]}

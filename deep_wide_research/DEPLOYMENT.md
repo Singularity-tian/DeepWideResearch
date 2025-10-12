@@ -79,7 +79,14 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://your-app.up.rai
 **解决方案**：确保 `Procfile` 和 `railway.json` 都在 `deep_wide_research` 文件夹中。
 
 ### 问题：模块导入错误
-**解决方案**：`main.py` 已更新为支持两种导入方式，应该可以自动处理。
+**错误信息**：`ImportError: attempted relative import with no known parent package`
+
+**解决方案**：所有模块文件（`engine.py`, `research_strategy.py`, `generate_strategy.py`）已更新为支持三种导入方式：
+1. 相对导入（`from .module import ...`）- 开发环境
+2. 绝对导入（`from deep_wide_research.module import ...`）- 项目根目录
+3. 独立导入（`from module import ...`）- Railway 部署环境
+
+这些导入会按顺序尝试，确保在任何环境下都能正常工作。
 
 ### 问题：CORS 错误
 **解决方案**：
@@ -100,6 +107,9 @@ cd deep_wide_research
 # 安装依赖
 pip install -r requirements.txt
 
+# 测试导入（验证模块导入配置）
+python test_imports.py
+
 # 运行服务器
 python main.py
 
@@ -108,4 +118,14 @@ uvicorn main:app --reload
 ```
 
 访问 `http://localhost:8000/docs` 查看 API 文档。
+
+### 验证部署准备
+
+在推送到 Railway 之前，运行 `test_imports.py` 确保所有导入都正常工作：
+
+```bash
+python test_imports.py
+```
+
+如果看到 `✅ All imports successful! Ready for Railway deployment.`，说明已准备好部署。
 

@@ -13,15 +13,20 @@ from typing import Dict, List, Optional
 import os
 import sys
 
-# 支持直接运行和模块导入
-if __name__ == "__main__":
-    from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from deep_wide_research.research_strategy import run_research_llm_driven
-    from deep_wide_research.generate_strategy import generate_report
-else:
+# 支持直接运行和模块导入 - 尝试绝对导入和相对导入
+try:
+    # 尝试作为包的一部分导入（开发环境）
     from .research_strategy import run_research_llm_driven
     from .generate_strategy import generate_report
+except ImportError:
+    # 尝试绝对导入（直接运行或部署环境）
+    try:
+        from deep_wide_research.research_strategy import run_research_llm_driven
+        from deep_wide_research.generate_strategy import generate_report
+    except ImportError:
+        # 作为独立模块导入（Railway 部署环境）
+        from research_strategy import run_research_llm_driven
+        from generate_strategy import generate_report
 
 
 def today_str() -> str:
