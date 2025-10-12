@@ -289,8 +289,9 @@ export default function Home() {
 
       console.log('🚀 Sending streaming request to backend:', message)
 
-      // 调用streaming API
-      const response = await fetch('http://localhost:8000/api/research', {
+      // 调用streaming API - 使用环境变量或默认本地地址
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${apiUrl}/api/research`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -355,7 +356,8 @@ export default function Home() {
       
     } catch (error) {
       console.error('Error calling research API:', error)
-      const errorMessage = `❌ Error: ${error instanceof Error ? error.message : 'Failed to connect to research API. Please make sure the backend server is running on http://localhost:8000'}`
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const errorMessage = `❌ Error: ${error instanceof Error ? error.message : `Failed to connect to research API. Please make sure the backend server is running at ${apiUrl}`}`
       
       // ✅ 添加错误消息到 Context
       const errorAssistantMessage: ChatMessage = { role: 'assistant', content: errorMessage, timestamp: Date.now() }

@@ -32,21 +32,31 @@ app = FastAPI(title="PuppyResearch API", version="1.0.0")
 
 # 配置 CORS，允许前端访问
 import os
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else [
-    "http://localhost:3000",
-    "http://localhost:3001", 
-    "http://localhost:3002",
-    "http://localhost:4000"
-]
+
+# 从环境变量读取允许的来源
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+if allowed_origins_env:
+    # 如果设置了 ALLOWED_ORIGINS，使用它（可以是逗号分隔的多个域名）
+    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+else:
+    # 默认允许本地开发环境
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:3001", 
+        "http://localhost:3002",
+        "http://localhost:4000"
+    ]
 
 # 如果在生产环境且没有指定 ALLOWED_ORIGINS，允许所有来源
-if not os.getenv("ALLOWED_ORIGINS") and os.getenv("RAILWAY_ENVIRONMENT"):
+allow_all_origins = False
+if not allowed_origins_env and os.getenv("RAILWAY_ENVIRONMENT"):
     allowed_origins = ["*"]
+    allow_all_origins = True
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=not allow_all_origins,  # 当允许所有来源时，不能使用 credentials
     allow_methods=["*"],
     allow_headers=["*"],
 )
