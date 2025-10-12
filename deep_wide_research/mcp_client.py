@@ -85,16 +85,14 @@ class MCPRegistry:
     def _load_builtin_servers(self):
         """加载内置的 MCP servers (Tavily, Exa)"""
         
-        # Tavily MCP Server
+        # Tavily MCP Server (使用 HTTP 远程服务器)
         # 文档: https://docs.tavily.com/documentation/mcp
         tavily_api_key = os.getenv("TAVILY_API_KEY")
         if tavily_api_key:
             self.register(MCPServerConfig(
                 name="tavily",
-                transport_type="stdio",
-                command="npx",
-                args=["-y", "tavily-mcp@0.1.3"],
-                env={"TAVILY_API_KEY": tavily_api_key},
+                transport_type="http",
+                server_url=f"https://mcp.tavily.com/mcp/?tavilyApiKey={tavily_api_key}",
                 description="Tavily search MCP server - powerful web search"
             ))
         else:
