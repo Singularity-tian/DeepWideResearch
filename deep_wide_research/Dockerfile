@@ -1,5 +1,5 @@
-# 使用同时包含 Python 和 Node.js 的基础镜像
-FROM nikolaik/python-nodejs:python3.12-nodejs20
+# 使用 Python 官方镜像
+FROM python:3.12-slim
 
 WORKDIR /app
 

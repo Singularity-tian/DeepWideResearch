@@ -119,7 +119,7 @@ class MCPRegistry:
                 self.register(MCPServerConfig(
                     name="exa",
                     transport_type="http",
-                    server_url="https://mcp.exa.ai/mcp",
+                    server_url=f"https://mcp.exa.ai/mcp?exaApiKey={exa_api_key}",
                     description="Exa search MCP server - AI-powered web search"
                 ))
             else:
@@ -442,14 +442,22 @@ class MCPClient:
                     }
                     headers = {
                         "Content-Type": "application/json",
-                        "Accept": "application/json"
+                        "Accept": "application/json, text/event-stream"
                     }
                     async with http_sess.post(self._server_url, json=payload, headers=headers) as resp:
                         if resp.status == 200:
-                            result = await resp.json()
-                            # JSON-RPC 响应格式：{"result": {"tools": [...]}}
-                            tools_data = result.get("result", {}).get("tools", [])
-                            return [{"name": t.get("name"), "description": t.get("description", ""), "inputSchema": t.get("inputSchema", {})} for t in tools_data]
+                            # 远程 MCP 返回 SSE 格式，需要解析
+                            text = await resp.text()
+                            # SSE 格式: "event: message\ndata: {...}\n\n"
+                            import json as json_module
+                            for line in text.split('\n'):
+                                if line.startswith('data: '):
+                                    json_str = line[6:]  # 去掉 "data: " 前缀
+                                    result = json_module.loads(json_str)
+                                    # JSON-RPC 响应格式：{"result": {"tools": [...]}}
+                                    tools_data = result.get("result", {}).get("tools", [])
+                                    return [{"name": t.get("name"), "description": t.get("description", ""), "inputSchema": t.get("inputSchema", {})} for t in tools_data]
+                            raise RuntimeError("No valid data in SSE response")
                         else:
                             raise RuntimeError(f"HTTP request failed: {resp.status}")
             
@@ -527,13 +535,21 @@ class MCPClient:
                     }
                     headers = {
                         "Content-Type": "application/json",
-                        "Accept": "application/json"
+                        "Accept": "application/json, text/event-stream"
                     }
                     async with http_sess.post(self._server_url, json=payload, headers=headers) as resp:
                         if resp.status == 200:
-                            result = await resp.json()
-                            # JSON-RPC 响应：{"result": {"content": [...]}}
-                            return result.get("result", {})
+                            # 远程 MCP 返回 SSE 格式，需要解析
+                            text = await resp.text()
+                            # SSE 格式: "event: message\ndata: {...}\n\n"
+                            import json as json_module
+                            for line in text.split('\n'):
+                                if line.startswith('data: '):
+                                    json_str = line[6:]  # 去掉 "data: " 前缀
+                                    result = json_module.loads(json_str)
+                                    # JSON-RPC 响应：{"result": {"content": [...]}}
+                                    return result.get("result", {})
+                            raise RuntimeError("No valid data in SSE response")
                         else:
                             raise RuntimeError(f"HTTP request failed: {resp.status}")
             
