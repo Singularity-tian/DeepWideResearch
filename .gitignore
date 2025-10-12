@@ -63,4 +63,7 @@ lerna-debug.log*
 ## Misc
 *.swp
 
+## Chat data
+chat_interface/data/chat_history/
+
 
