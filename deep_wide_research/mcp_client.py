@@ -85,27 +85,36 @@ class MCPRegistry:
     def _load_builtin_servers(self):
         """加载内置的 MCP servers (Tavily, Exa)"""
         
-        # Tavily MCP Server (使用 HTTP 远程服务器)
+        # 在 Railway 上跳过 MCP（因为 npx 不稳定）
+        if os.getenv("RAILWAY_ENVIRONMENT"):
+            print("⚠️  MCP servers skipped in Railway environment (use native search APIs)")
+            return
+        
+        # Tavily MCP Server (本地开发用)
         # 文档: https://docs.tavily.com/documentation/mcp
         tavily_api_key = os.getenv("TAVILY_API_KEY")
         if tavily_api_key:
             self.register(MCPServerConfig(
                 name="tavily",
-                transport_type="http",
-                server_url=f"https://mcp.tavily.com/mcp/?tavilyApiKey={tavily_api_key}",
+                transport_type="stdio",
+                command="npx",
+                args=["-y", "tavily-mcp@0.1.3"],
+                env={"TAVILY_API_KEY": tavily_api_key},
                 description="Tavily search MCP server - powerful web search"
             ))
         else:
             print("⚠️  Tavily MCP server skipped: TAVILY_API_KEY not found")
         
-        # Exa MCP Server (使用 HTTP 远程服务器)
+        # Exa MCP Server (本地开发用)
         # 文档: https://docs.exa.ai/reference/exa-mcp
         exa_api_key = os.getenv("EXA_API_KEY")
         if exa_api_key:
             self.register(MCPServerConfig(
                 name="exa",
-                transport_type="http",
-                server_url="https://mcp.exa.ai/mcp",
+                transport_type="stdio",
+                command="npx",
+                args=["-y", "exa-mcp-server"],
+                env={"EXA_API_KEY": exa_api_key},
                 description="Exa search MCP server - AI-powered web search, code search, and research"
             ))
         else:
