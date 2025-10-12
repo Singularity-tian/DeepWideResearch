@@ -7,9 +7,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 预安装 MCP 包（从 GitHub）
-RUN npm install -g https://github.com/tavily-ai/tavily-mcp
-
 # 复制应用代码
 COPY . .
 
