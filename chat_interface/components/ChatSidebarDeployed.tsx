@@ -48,7 +48,7 @@ export default function ChatSidebarDeployed({
       }
 
       // Prepare request body
-      const requestBody: any = {
+      const requestBody: { input: Record<string, string>; chat_history?: Record<string, ChatMessage[]> } = {
         input: {
           [inputBlockId]: message
         }

@@ -34,7 +34,7 @@ export default function ChatSidebar({
     padding: '16px',
     boxSizing: 'border-box',
     zIndex,
-  } as React.CSSProperties & { [key: string]: any }
+  } as React.CSSProperties & Record<string, string | number>
 
   const panelStyle: React.CSSProperties = {
     width: '100%',

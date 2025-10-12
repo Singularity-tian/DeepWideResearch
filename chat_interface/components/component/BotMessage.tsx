@@ -201,7 +201,7 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
                   components={{
                   p: ({ children, ...props }) => {
                     // Process children to enhance citation references
-                    const processChildren = (child: any): any => {
+                    const processChildren = (child: React.ReactNode): React.ReactNode => {
                       if (typeof child === 'string') {
                         const parts = child.split(/(\[\d+\])/g)
                         return parts.map((part, i) => {

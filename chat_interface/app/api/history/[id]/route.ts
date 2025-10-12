@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params
     const body = await request.json().catch(() => ({}))
     const filePath = await sessionPath(id)
-    let existing: any = {}
+    let existing: { id?: string; title?: string; createdAt?: number; updatedAt?: number; messages?: unknown[] } = {}
     try {
       const raw = await fs.readFile(filePath, 'utf-8')
       existing = JSON.parse(raw)

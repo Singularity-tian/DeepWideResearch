@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       messages: messages.map(m => ({ ...m, timestamp: m.timestamp ?? now }))
     }
     await fs.writeFile(filePath, JSON.stringify(payload, null, 2), 'utf-8')
-    return NextResponse.json({ id, ...payload })
+    return NextResponse.json(payload)
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
   }
