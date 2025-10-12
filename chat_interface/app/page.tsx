@@ -4,7 +4,10 @@ import React, { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import DeepWideGrid from './DeepWideGrid'
 import MCPBar from './MCPBar'
-import SessionsSidebar from '../components/SessionsSidebar'
+import HistoryToggleButton from './headercomponent/HistoryToggleButton'
+import NewChatButton from './headercomponent/NewChatButton'
+import SessionsOverlay from './headercomponent/SessionsOverlay'
+import { useSession } from './context/SessionContext'
 import type { Message as UIMessage } from '../components/component/ChatInterface'
  
 
@@ -22,23 +25,33 @@ interface ChatMessage {
 }
 
 export default function Home() {
-  // 使用标准消息格式保存完整对话历史
-  const [messageHistory, setMessageHistory] = useState<ChatMessage[]>([])
+  // 🎯 使用 SessionContext（包含会话列表、消息历史等）
+  const {
+    sessions,
+    currentSessionId,
+    isLoading: isLoadingSessions,
+    isLoadingChat,
+    createSession,
+    switchSession,
+    deleteSession,
+    addMessage,
+    updateMessages,
+    getCurrentMessages,
+    saveSessionToBackend
+  } = useSession()
+
+  // UI 状态
   const [researchParams, setResearchParams] = useState<{ deep: number; wide: number }>({ deep: 0.5, wide: 0.5 })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [sessions, setSessions] = useState<Array<{ id: string; title: string; createdAt: number; updatedAt: number }>>([])
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
-  
-  // 追踪 selectedSessionId 变化
-  React.useEffect(() => {
-    console.log('📌 selectedSessionId changed to:', selectedSessionId)
-  }, [selectedSessionId])
-  const [isLoadingSessions, setIsLoadingSessions] = useState(false)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(240)
   const [isSidebarMenuOpen, setIsSidebarMenuOpen] = useState(false)
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [showCreateSuccess, setShowCreateSuccess] = useState(false)
+  
+  // 追踪 currentSessionId 变化
+  React.useEffect(() => {
+    console.log('📌 currentSessionId changed to:', currentSessionId)
+  }, [currentSessionId])
 
   // 添加点击外部关闭设置面板的逻辑
   React.useEffect(() => {
@@ -115,90 +128,6 @@ export default function Home() {
       backendFormat: mcpForBackend
     })
   }, [mcpConfig])
-  
-
-  // 会话相关 API 帮助函数
-  const fetchSessions = async () => {
-    const res = await fetch('/api/history', { cache: 'no-store' })
-    if (!res.ok) throw new Error('Failed to load sessions')
-    const data = await res.json()
-    return (data.sessions || []) as Array<{ id: string; title: string; createdAt: number; updatedAt: number }>
-  }
-
-  const fetchSession = async (id: string) => {
-    const res = await fetch(`/api/history/${id}`, { cache: 'no-store' })
-    if (!res.ok) throw new Error('Failed to load session')
-    const data = await res.json()
-    return data as { id: string; title: string; createdAt: number; updatedAt: number; messages: ChatMessage[] }
-  }
-
-  const createSession = async (title = 'New Chat') => {
-    const res = await fetch('/api/history', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, messages: [] })
-    })
-    if (!res.ok) throw new Error('Failed to create session')
-    const data = await res.json()
-    return data as { id: string; title: string }
-  }
-
-  const ensureSession = async () => {
-    if (selectedSessionId) return selectedSessionId
-    const created = await createSession('New Chat')
-    setSelectedSessionId(created.id)
-    const nextSessions = await fetchSessions()
-    setSessions(nextSessions)
-    return created.id
-  }
-
-  const saveSession = async (messages: ChatMessage[]) => {
-    try {
-      const id = await ensureSession()
-      const firstUser = messages.find(m => m.role === 'user')
-      const title = firstUser ? (firstUser.content || 'New Chat').slice(0, 60) : 'New Chat'
-      await fetch(`/api/history/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          messages: messages.map(m => ({ ...m, timestamp: m.timestamp ?? Date.now() }))
-        })
-      })
-      const nextSessions = await fetchSessions()
-      setSessions(nextSessions)
-    } catch (e) {
-      console.warn('Failed to save session:', e)
-    }
-  }
-
-  // 初始化加载会话
-  useEffect(() => {
-    const init = async () => {
-      try {
-        setIsLoadingSessions(true)
-        const list = await fetchSessions()
-        setSessions(list)
-        if (list.length === 0) {
-          const created = await createSession('New Chat')
-          setSelectedSessionId(created.id)
-          setMessageHistory([])
-          const refreshed = await fetchSessions()
-          setSessions(refreshed)
-        } else {
-          const first = list[0]
-          setSelectedSessionId(first.id)
-          const detail = await fetchSession(first.id)
-          setMessageHistory(Array.isArray(detail.messages) ? detail.messages : [])
-        }
-      } catch (e) {
-        console.warn('Failed to initialize sessions:', e)
-      } finally {
-        setIsLoadingSessions(false)
-      }
-    }
-    init()
-  }, [])
 
   // 侧边栏下拉（overlay）外部点击关闭
   useEffect(() => {
@@ -219,10 +148,11 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isSidebarMenuOpen])
 
-  // 将标准历史映射为 UI 消息
+  // 将 Context 中的消息映射为 UI 消息
   const uiMessages: UIMessage[] = React.useMemo(() => {
-    console.log('🔄 uiMessages recalculating, messageHistory length:', messageHistory.length)
-    const result = messageHistory.map((m, idx) => ({
+    const currentMessages = getCurrentMessages()
+    console.log('🔄 uiMessages recalculating, currentMessages length:', currentMessages.length)
+    const result = currentMessages.map((m, idx) => ({
       id: `${m.timestamp ?? idx}-${idx}`,
       content: m.content,
       sender: (m.role === 'assistant' ? 'bot' : 'user') as 'bot' | 'user',
@@ -230,41 +160,67 @@ export default function Home() {
     }))
     console.log('✅ uiMessages result:', result.length, 'messages')
     return result
-  }, [messageHistory])
+  }, [getCurrentMessages, currentSessionId]) // 依赖 currentSessionId，会话切换时重新计算
+
+  // 处理新建会话
+  const handleCreateNewChat = async () => {
+    if (isCreatingSession) return
+    setIsCreatingSession(true)
+    try {
+      const newId = await createSession('New Chat')
+      await switchSession(newId) // ✅ 使用 Context 的 switchSession
+      setIsSidebarMenuOpen(false)
+      // 显示成功反馈
+      setShowCreateSuccess(true)
+      setTimeout(() => setShowCreateSuccess(false), 2000)
+    } finally {
+      setIsCreatingSession(false)
+    }
+  }
+
+  // 处理会话切换（使用 Context 的缓存机制）
+  const handleSessionClick = async (id: string) => {
+    try {
+      await switchSession(id) // ✅ 使用 Context 的 switchSession，自动处理缓存
+      setIsSidebarMenuOpen(false)
+    } catch (e) {
+      console.warn('Failed to switch session:', e)
+    }
+  }
+
+  // 处理会话删除
+  const handleDeleteSession = async (id: string) => {
+    try {
+      await deleteSession(id) // ✅ 使用 Context 的 deleteSession
+    } catch (e) {
+      console.warn('Failed to delete session:', e)
+    }
+  }
 
   const handleSendMessage = async (message: string, onStreamUpdate?: (content: string, isStreaming?: boolean) => void) => {
     // 🔒 关键：在函数开始时锁定当前的sessionId，防止切换会话导致的状态混乱
-    // 如果没有sessionId，立即创建一个
-    let targetSessionId = selectedSessionId
+    let targetSessionId = currentSessionId
     if (!targetSessionId) {
-      const created = await createSession('New Chat')
-      targetSessionId = created.id
-      setSelectedSessionId(created.id)
-      const nextSessions = await fetchSessions()
-      setSessions(nextSessions)
+      // 如果没有会话，创建一个新会话
+      targetSessionId = await createSession('New Chat')
+      await switchSession(targetSessionId)
     }
     
     const userMessage: ChatMessage = { role: 'user', content: message, timestamp: Date.now() }
-    const localHistoryBefore = [...messageHistory, userMessage]
+    const currentMessages = getCurrentMessages()
+    const localHistoryBefore = [...currentMessages, userMessage]
     
     try {
+      // ✅ 立即添加用户消息到 Context（UI 立即更新）
+      addMessage(targetSessionId, userMessage)
+      
       // 检查是否是第一条用户消息，如果是，立即更新会话标题
-      const isFirstUserMessage = messageHistory.filter(m => m.role === 'user').length === 0
+      const isFirstUserMessage = currentMessages.filter(m => m.role === 'user').length === 0
       if (isFirstUserMessage) {
-        const newTitle = message.slice(0, 60)
-        // 立即更新会话标题
-        fetch(`/api/history/${targetSessionId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: newTitle,
-            messages: localHistoryBefore
-          })
-        }).then(async () => {
-          // 更新本地 sessions 状态以立即反映标题变化
-          const nextSessions = await fetchSessions()
-          setSessions(nextSessions)
-        }).catch(e => console.warn('Failed to update title:', e))
+        // 立即保存标题
+        saveSessionToBackend(targetSessionId, localHistoryBefore).catch(e => 
+          console.warn('Failed to update title:', e)
+        )
       }
 
       // 构造请求数据
@@ -294,9 +250,6 @@ export default function Home() {
       }
 
       console.log('🚀 Sending streaming request to backend:', message)
-
-      // 更新 UI 历史（仅当还在查看目标会话时）
-      setMessageHistory(prev => [...prev, userMessage])
 
       // 调用streaming API
       const response = await fetch('http://localhost:8000/api/research', {
@@ -346,36 +299,13 @@ export default function Home() {
         }
       }
 
-      // 🔒 关键修复：构建完整的历史记录，直接保存到目标session
+      // ✅ 添加助手回复到 Context
       const assistantMessage: ChatMessage = { role: 'assistant', content: finalReport || currentStatus, timestamp: Date.now() }
+      addMessage(targetSessionId, assistantMessage)
+      
+      // ✅ 保存到后端
       const completeHistory = [...localHistoryBefore, assistantMessage]
-      
-      // 保存到目标session（targetSessionId在函数开始时已确保存在）
-      const firstUser = completeHistory.find(m => m.role === 'user')
-      const title = firstUser ? (firstUser.content || 'New Chat').slice(0, 60) : 'New Chat'
-      
-      await fetch(`/api/history/${targetSessionId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          messages: completeHistory
-        })
-      })
-      
-      // 刷新会话列表
-      const nextSessions = await fetchSessions()
-      setSessions(nextSessions)
-      
-      // 只有当用户还在查看这个会话时，才更新UI
-      setMessageHistory(currentHistory => {
-        // 检查当前选中的会话是否是目标会话
-        if (selectedSessionId === targetSessionId) {
-          return completeHistory
-        }
-        // 如果已经切换到其他会话，不更新UI
-        return currentHistory
-      })
+      await saveSessionToBackend(targetSessionId, completeHistory)
       
       return finalReport || currentStatus
       
@@ -383,34 +313,15 @@ export default function Home() {
       console.error('Error calling research API:', error)
       const errorMessage = `❌ Error: ${error instanceof Error ? error.message : 'Failed to connect to research API. Please make sure the backend server is running on http://localhost:8000'}`
       
-      // 🔒 关键修复：构建完整的历史记录，直接保存到目标session
+      // ✅ 添加错误消息到 Context
       const errorAssistantMessage: ChatMessage = { role: 'assistant', content: errorMessage, timestamp: Date.now() }
+      addMessage(targetSessionId, errorAssistantMessage)
+      
+      // ✅ 保存到后端
       const completeHistoryWithError = [...localHistoryBefore, errorAssistantMessage]
-      
-      // 保存到目标session（targetSessionId在函数开始时已确保存在）
-      const firstUser = completeHistoryWithError.find(m => m.role === 'user')
-      const title = firstUser ? (firstUser.content || 'New Chat').slice(0, 60) : 'New Chat'
-      
-      await fetch(`/api/history/${targetSessionId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          messages: completeHistoryWithError
-        })
-      }).catch(e => console.warn('Failed to save error message:', e))
-      
-      // 刷新会话列表
-      const nextSessions = await fetchSessions()
-      setSessions(nextSessions)
-      
-      // 只有当用户还在查看这个会话时，才更新UI
-      setMessageHistory(currentHistory => {
-        if (selectedSessionId === targetSessionId) {
-          return completeHistoryWithError
-        }
-        return currentHistory
-      })
+      await saveSessionToBackend(targetSessionId, completeHistoryWithError).catch(e => 
+        console.warn('Failed to save error message:', e)
+      )
       
       return errorMessage
     }
@@ -419,223 +330,79 @@ export default function Home() {
   return (
     <div style={{ 
       height: '100vh', 
+      width: '100vw',
       display: 'flex', 
       alignItems: 'flex-start',
       justifyContent: 'flex-start',
       padding: '32px 32px 32px 32px',
       backgroundColor: '#0a0a0a',
       backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(120, 120, 120, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(120, 120, 120, 0.1) 0%, transparent 50%)',
-      minHeight: '100vh'
+      overflow: 'hidden',
+      boxSizing: 'border-box'
     }}>
-      <div style={{ height: '100%', display: 'flex', alignItems: 'stretch', gap: '16px', width: '100%' }}>
+      <div style={{ 
+        height: '100%', 
+        width: '100%', 
+        display: 'flex', 
+        alignItems: 'stretch', 
+        gap: '16px',
+        overflow: 'hidden'
+      }}>
         {/* 左侧不再占据 flex 空间，使用 header overlay 呈现会话 */}
 
         {/* 右侧聊天区域（限制最大宽度为 800px） */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <div style={{ width: '100%', maxWidth: '900px', height: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          justifyContent: 'center',
+          overflow: 'hidden',
+          minHeight: 0
+        }}>
+          <div style={{ 
+            width: '100%', 
+            maxWidth: '900px', 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '12px',
+            overflow: 'hidden',
+            minHeight: 0
+          }}>
             {/* 顶部控制栏 */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px', position: 'relative' }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              padding: '0 4px', 
+              position: 'relative',
+              flexShrink: 0
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  data-sidebar-toggle
+                <HistoryToggleButton
+                  isOpen={isSidebarMenuOpen}
                   onClick={(e) => {
                     e.stopPropagation()
                     setIsSidebarMenuOpen(prev => !prev)
                   }}
-                  title={isSidebarMenuOpen ? "Close history" : "Open history"}
-                  style={{
-                    position: 'relative',
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '18px',
-                    border: isSidebarMenuOpen 
-                      ? '2px solid #4a4a4a' 
-                      : '1px solid #2a2a2a',
-                    background: isSidebarMenuOpen 
-                      ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%)' 
-                      : 'rgba(20, 20, 20, 0.9)',
-                    color: isSidebarMenuOpen ? '#e6e6e6' : '#bbb',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    boxShadow: isSidebarMenuOpen 
-                      ? '0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.1)' 
-                      : '0 2px 8px rgba(0,0,0,0.3)',
-                    transition: 'all 200ms ease',
-                    transform: isSidebarMenuOpen ? 'scale(1.05)' : 'scale(1)',
-                    backdropFilter: 'blur(8px)',
-                    padding: 0,
-                    margin: 0
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSidebarMenuOpen) {
-                      e.currentTarget.style.borderColor = '#3a3a3a'
-                      e.currentTarget.style.color = '#e6e6e6'
-                      e.currentTarget.style.transform = 'scale(1.08)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSidebarMenuOpen) {
-                      e.currentTarget.style.borderColor = '#2a2a2a'
-                      e.currentTarget.style.color = '#bbb'
-                      e.currentTarget.style.transform = 'scale(1)'
-                    }
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 -4H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
+                />
 
-                {/* 新建对话按钮 */}
-                <button
-                  onClick={async () => {
-                    if (isCreatingSession) return
-                    setIsCreatingSession(true)
-                    try {
-                      const created = await createSession('New Chat')
-                      setSelectedSessionId(created.id)
-                      setMessageHistory([]) // 清空消息历史，让 ChatMain 显示 welcome message
-                      const next = await fetchSessions()
-                      setSessions(next)
-                      // 显示成功反馈
-                      setShowCreateSuccess(true)
-                      setTimeout(() => setShowCreateSuccess(false), 2000)
-                    } finally {
-                      setIsCreatingSession(false)
-                    }
-                  }}
-                  disabled={isCreatingSession}
-                  title="New Chat"
-                  style={{
-                    position: 'relative',
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '18px',
-                    border: '1px solid #2a2a2a',
-                    background: 'rgba(20, 20, 20, 0.9)',
-                    color: '#bbb',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: isCreatingSession ? 'default' : 'pointer',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                    transition: 'all 200ms ease',
-                    backdropFilter: 'blur(8px)',
-                    padding: 0,
-                    margin: 0,
-                    opacity: isCreatingSession ? 0.6 : 1
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isCreatingSession) {
-                      e.currentTarget.style.borderColor = '#3a3a3a'
-                      e.currentTarget.style.color = '#e6e6e6'
-                      e.currentTarget.style.transform = 'scale(1.08)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isCreatingSession) {
-                      e.currentTarget.style.borderColor = '#2a2a2a'
-                      e.currentTarget.style.color = '#bbb'
-                      e.currentTarget.style.transform = 'scale(1)'
-                    }
-                  }}
-                >
-                  {isCreatingSession ? (
-                    <svg style={{ animation: 'spin 1s linear infinite', height: '18px', width: '18px' }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
-                      <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : showCreateSuccess ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </button>
+                <NewChatButton
+                  isCreating={isCreatingSession}
+                  showSuccess={showCreateSuccess}
+                  onClick={handleCreateNewChat}
+                />
 
                 {/* Overlay panel under the toggle button */}
-                <div
-                  data-sidebar-panel
-                  style={{
-                    position: 'absolute',
-                    top: '47px',
-                    left: '0',
-                    width: `${sidebarWidth}px`,
-                    maxHeight: '60vh',
-                    overflow: 'visible',
-                    background: 'linear-gradient(135deg, rgba(25,25,25,0.98) 0%, rgba(15,15,15,0.98) 100%)',
-                    border: '1px solid #2a2a2a',
-                    borderRadius: '14px',
-                    boxShadow: isSidebarMenuOpen 
-                      ? '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.1)' 
-                      : '0 4px 12px rgba(0,0,0,0.3)',
-                    opacity: isSidebarMenuOpen ? 1 : 0,
-                    transform: isSidebarMenuOpen ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.95)',
-                    transition: 'all 300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    pointerEvents: isSidebarMenuOpen ? 'auto' : 'none',
-                    backdropFilter: 'blur(12px)',
-                    zIndex: 50
-                  }}
-                  aria-hidden={!isSidebarMenuOpen}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <SessionsSidebar
-                    sessions={sessions}
-                    selectedSessionId={selectedSessionId}
-                    isLoading={isLoadingSessions}
-                    showHeader={false}
-                    showNewButton={false}
-                    onSessionClick={async (id) => {
-                      try {
-                        console.log('🔄 Switching to session:', id)
-                        setSelectedSessionId(id)
-                        const data = await fetchSession(id)
-                        console.log('📥 Fetched session data:', data)
-                        console.log('📝 Messages count:', data.messages?.length)
-                        setMessageHistory(Array.isArray(data.messages) ? data.messages : [])
-                        setIsSidebarMenuOpen(false)
-                      } catch (e) {
-                        console.warn('Failed to switch session:', e)
-                      }
-                    }}
-                    onCreateNew={async () => {
-                const created = await createSession('New Chat')
-                setSelectedSessionId(created.id)
-                setMessageHistory([])
-                const next = await fetchSessions()
-                setSessions(next)
-                      setIsSidebarMenuOpen(false)
-                    }}
-                    onDeleteSession={async (id) => {
-                      try {
-                        const res = await fetch(`/api/history/${id}`, { method: 'DELETE' })
-                        if (!res.ok && res.status !== 204) throw new Error('Delete failed')
-                        const next = await fetchSessions()
-                        setSessions(next)
-                        if (selectedSessionId === id) {
-                          const first = next[0]
-                          if (first) {
-                            setSelectedSessionId(first.id)
-                            const detail = await fetchSession(first.id)
-                            setMessageHistory(Array.isArray(detail.messages) ? detail.messages : [])
-                          } else {
-                            setSelectedSessionId(null)
-                            setMessageHistory([])
-                          }
-                        }
-                      } catch (e) {
-                        console.warn('Failed to delete session:', e)
-                      }
-                    }}
-                  />
-                </div>
+                <SessionsOverlay
+                  isOpen={isSidebarMenuOpen}
+                  sidebarWidth={sidebarWidth}
+                  sessions={sessions}
+                  selectedSessionId={currentSessionId}
+                  isLoading={isLoadingSessions}
+                  onSessionClick={handleSessionClick}
+                  onCreateNew={handleCreateNewChat}
+                  onDeleteSession={handleDeleteSession}
+                />
               </div>
 
               {/* 中心标题 */}
@@ -672,15 +439,22 @@ export default function Home() {
               <div style={{ width: '80px' }}></div>
             </div>
 
-            <ChatMain
-          key={selectedSessionId ?? 'default'}
-              initialMessages={uiMessages.length > 0 ? uiMessages : undefined}
-          onSendMessage={handleSendMessage}
-          title="Deep Wide Research"
-          placeholder="Ask anything about your research topic..."
-          welcomeMessage="Welcome to Deep & Wide Research! I'm your AI research assistant ready to conduct comprehensive research and provide detailed insights. What would you like to explore today?"
-          width="100%"
-          height="100%"
+            {/* ChatMain 包装器 - 填充剩余空间 */}
+            <div style={{
+              flex: 1,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <ChatMain
+                key={currentSessionId ?? 'default'}
+                initialMessages={uiMessages.length > 0 ? uiMessages : undefined}
+                onSendMessage={handleSendMessage}
+                title="Deep Wide Research"
+                placeholder="Ask anything about your research topic..."
+                welcomeMessage="Welcome to Deep & Wide Research! I'm your AI research assistant ready to conduct comprehensive research and provide detailed insights. What would you like to explore today?"
+                width="100%"
+                height="100%"
         recommendedQuestions={[
           "What are the key differences between Databricks and Snowflake?",
           "Explain quantum computing and its applications",
@@ -692,206 +466,31 @@ export default function Home() {
         showAvatar={false}
               headerLeft={(
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button
-                    data-sidebar-toggle
+                  <HistoryToggleButton
+                    isOpen={isSidebarMenuOpen}
                     onClick={(e) => {
                       e.stopPropagation()
                       setIsSidebarMenuOpen(prev => !prev)
                     }}
-                    title={isSidebarMenuOpen ? "Close history" : "Open history"}
-                    style={{
-                      position: 'relative',
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '18px',
-                      border: isSidebarMenuOpen 
-                        ? '2px solid #4a4a4a' 
-                        : '1px solid #2a2a2a',
-                      background: isSidebarMenuOpen 
-                        ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%)' 
-                        : 'rgba(20, 20, 20, 0.9)',
-                      color: isSidebarMenuOpen ? '#e6e6e6' : '#bbb',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      boxShadow: isSidebarMenuOpen 
-                        ? '0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.1)' 
-                        : '0 2px 8px rgba(0,0,0,0.3)',
-                      transition: 'all 200ms ease',
-                      transform: isSidebarMenuOpen ? 'scale(1.05)' : 'scale(1)',
-                      backdropFilter: 'blur(8px)',
-                      padding: 0,
-                      margin: 0
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSidebarMenuOpen) {
-                        e.currentTarget.style.borderColor = '#3a3a3a'
-                        e.currentTarget.style.color = '#e6e6e6'
-                        e.currentTarget.style.transform = 'scale(1.08)'
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSidebarMenuOpen) {
-                        e.currentTarget.style.borderColor = '#2a2a2a'
-                        e.currentTarget.style.color = '#bbb'
-                        e.currentTarget.style.transform = 'scale(1)'
-                      }
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 -4H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
+                  />
 
-                  {/* 新建对话按钮 */}
-                  <button
-                    onClick={async () => {
-                      if (isCreatingSession) return
-                      setIsCreatingSession(true)
-                      try {
-                        const created = await createSession('New Chat')
-                        setSelectedSessionId(created.id)
-                        setMessageHistory([]) // 清空消息历史，让 ChatMain 显示 welcome message
-                        const next = await fetchSessions()
-                        setSessions(next)
-                        // 显示成功反馈
-                        setShowCreateSuccess(true)
-                        setTimeout(() => setShowCreateSuccess(false), 2000)
-                      } finally {
-                        setIsCreatingSession(false)
-                      }
-                    }}
-                    disabled={isCreatingSession}
-                    title="New Chat"
-                    style={{
-                      position: 'relative',
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '18px',
-                      border: '1px solid #2a2a2a',
-                      background: 'rgba(20, 20, 20, 0.9)',
-                      color: '#bbb',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: isCreatingSession ? 'default' : 'pointer',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                      transition: 'all 200ms ease',
-                      backdropFilter: 'blur(8px)',
-                      padding: 0,
-                      margin: 0,
-                      opacity: isCreatingSession ? 0.6 : 1
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isCreatingSession) {
-                        e.currentTarget.style.borderColor = '#3a3a3a'
-                        e.currentTarget.style.color = '#e6e6e6'
-                        e.currentTarget.style.transform = 'scale(1.08)'
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isCreatingSession) {
-                        e.currentTarget.style.borderColor = '#2a2a2a'
-                        e.currentTarget.style.color = '#bbb'
-                        e.currentTarget.style.transform = 'scale(1)'
-                      }
-                    }}
-                  >
-                    {isCreatingSession ? (
-                      <svg style={{ animation: 'spin 1s linear infinite', height: '18px', width: '18px' }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
-                        <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                    ) : showCreateSuccess ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </button>
+                  <NewChatButton
+                    isCreating={isCreatingSession}
+                    showSuccess={showCreateSuccess}
+                    onClick={handleCreateNewChat}
+                  />
 
                   {/* Overlay panel under the toggle button */}
-                  <div
-                    data-sidebar-panel
-                    style={{
-                      position: 'absolute',
-                      top: '47px',
-                      left: '0',
-                      width: `${sidebarWidth}px`,
-                      maxHeight: '60vh',
-                      overflow: 'visible',
-                      background: 'linear-gradient(135deg, rgba(25,25,25,0.98) 0%, rgba(15,15,15,0.98) 100%)',
-                      border: '1px solid #2a2a2a',
-                      borderRadius: '14px',
-                      boxShadow: isSidebarMenuOpen 
-                        ? '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.1)' 
-                        : '0 4px 12px rgba(0,0,0,0.3)',
-                      opacity: isSidebarMenuOpen ? 1 : 0,
-                      transform: isSidebarMenuOpen ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.95)',
-                      transition: 'all 300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                      pointerEvents: isSidebarMenuOpen ? 'auto' : 'none',
-                      backdropFilter: 'blur(12px)',
-                      zIndex: 50
-                    }}
-                    aria-hidden={!isSidebarMenuOpen}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <SessionsSidebar
-                      sessions={sessions}
-                      selectedSessionId={selectedSessionId}
-                      isLoading={isLoadingSessions}
-                      showHeader={false}
-                      showNewButton={false}
-                      onSessionClick={async (id) => {
-                          try {
-                            console.log('🔄 Switching to session (headerLeft):', id)
-                            setSelectedSessionId(id)
-                            const data = await fetchSession(id)
-                            console.log('📥 Fetched session data (headerLeft):', data)
-                            console.log('📝 Messages count (headerLeft):', data.messages?.length)
-                            setMessageHistory(Array.isArray(data.messages) ? data.messages : [])
-                            setIsSidebarMenuOpen(false)
-                          } catch (e) {
-                            console.warn('Failed to switch session:', e)
-                          }
-                        }}
-                        onCreateNew={async () => {
-                          const created = await createSession('New Chat')
-                          setSelectedSessionId(created.id)
-                          setMessageHistory([])
-                          const next = await fetchSessions()
-                          setSessions(next)
-                          setIsSidebarMenuOpen(false)
-                        }}
-                        onDeleteSession={async (id) => {
-                          try {
-                            const res = await fetch(`/api/history/${id}`, { method: 'DELETE' })
-                            if (!res.ok && res.status !== 204) throw new Error('Delete failed')
-                            const next = await fetchSessions()
-                            setSessions(next)
-                            if (selectedSessionId === id) {
-                              const first = next[0]
-                              if (first) {
-                                setSelectedSessionId(first.id)
-                                const detail = await fetchSession(first.id)
-                                setMessageHistory(Array.isArray(detail.messages) ? detail.messages : [])
-                              } else {
-                                setSelectedSessionId(null)
-                                setMessageHistory([])
-                              }
-                            }
-                          } catch (e) {
-                            console.warn('Failed to delete session:', e)
-                          }
-                        }}
-                      />
-                  </div>
+                  <SessionsOverlay
+                    isOpen={isSidebarMenuOpen}
+                    sidebarWidth={sidebarWidth}
+                    sessions={sessions}
+                    selectedSessionId={currentSessionId}
+                    isLoading={isLoadingSessions}
+                    onSessionClick={handleSessionClick}
+                    onCreateNew={handleCreateNewChat}
+                    onDeleteSession={handleDeleteSession}
+                  />
                 </div>
               )}
           aboveInput={
@@ -1021,6 +620,7 @@ export default function Home() {
             </div>
           }
         />
+            </div>
           </div>
         </div>
       </div>

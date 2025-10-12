@@ -119,18 +119,31 @@ export default function ChatInterface({
   const [isStreamingWelcome, setIsStreamingWelcome] = useState(false)
   const [visibleQuestionsCount, setVisibleQuestionsCount] = useState(0)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior })
   }
 
+  // 消息变化时滚动到底部
   useEffect(() => {
-    scrollToBottom()
+    // 初始加载或切换会话时，直接跳到底部（无动画）
+    if (isInitialLoad) {
+      scrollToBottom('auto')
+      setIsInitialLoad(false)
+    } else {
+      // 新消息时使用平滑滚动
+      scrollToBottom('smooth')
+    }
   }, [messages])
 
   // 🔧 同步 initialMessages 的变化（当父组件更新时）
   useEffect(() => {
     console.log('🔄 ChatInterface useEffect triggered, initialMessages:', initialMessages?.length)
     if (initialMessages !== undefined) {
+      // 标记为初始加载状态，触发直接跳转（无动画）
+      setIsInitialLoad(true)
+      
       if (initialMessages.length === 0) {
         console.log('➡️ Setting default welcome message')
         // 如果传入空数组，表示新会话，重置为默认欢迎消息
@@ -166,14 +179,22 @@ export default function ChatInterface({
     `)
   }, [])
 
-  // 注入滚动条样式：透明轨道 + 深色滚动块
+  // 注入滚动条样式：默认隐藏，悬停或滚动时显示
   useEffect(() => {
     StyleManager.inject('puppychat-scrollbar-styles', `
+      /* Firefox */
       .puppychat-messages, .puppychat-textarea {
-        scrollbar-color: rgba(100, 100, 100, 0.7) transparent;
+        scrollbar-color: transparent transparent;
         scrollbar-width: thin;
+        transition: scrollbar-color 0.3s ease;
       }
 
+      .puppychat-messages:hover, .puppychat-textarea:hover,
+      .puppychat-messages:active, .puppychat-textarea:active {
+        scrollbar-color: rgba(100, 100, 100, 0.7) transparent;
+      }
+
+      /* WebKit (Chrome, Safari, Edge) */
       .puppychat-messages::-webkit-scrollbar,
       .puppychat-textarea::-webkit-scrollbar {
         width: 8px;
@@ -187,10 +208,18 @@ export default function ChatInterface({
 
       .puppychat-messages::-webkit-scrollbar-thumb,
       .puppychat-textarea::-webkit-scrollbar-thumb {
-        background-color: rgba(100, 100, 100, 0.7);
+        background-color: transparent;
         border-radius: 8px;
+        transition: background-color 0.3s ease;
       }
 
+      /* 悬停容器时显示滚动条 */
+      .puppychat-messages:hover::-webkit-scrollbar-thumb,
+      .puppychat-textarea:hover::-webkit-scrollbar-thumb {
+        background-color: rgba(100, 100, 100, 0.5);
+      }
+
+      /* 悬停滚动条本身时更明显 */
       .puppychat-messages::-webkit-scrollbar-thumb:hover,
       .puppychat-textarea::-webkit-scrollbar-thumb:hover {
         background-color: rgba(120, 120, 120, 0.9);
