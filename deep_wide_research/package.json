@@ -1,0 +1,10 @@
+{
+  "name": "puppyresearch-backend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@tavily/mcp-server": "latest",
+    "@exa/mcp-server": "latest"
+  }
+}
+

@@ -1,9 +1,0 @@
-[phases.setup]
-nixPkgs = ['python312', 'nodejs_20']
-
-[phases.install]
-cmds = ['npm install -g @tavily/mcp-server @exa/mcp-server']
-
-[start]
-cmd = 'uvicorn main:app --host 0.0.0.0 --port $PORT'
-
