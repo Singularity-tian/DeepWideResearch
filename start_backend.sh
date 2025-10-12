@@ -15,5 +15,5 @@ pip install -q -r deep_wide_research/requirements.txt
 
 # 从项目根目录启动服务器（重要！）
 echo "🚀 Starting API server..."
-python deep_wide_research/api_server.py
+python deep_wide_research/main.py
 

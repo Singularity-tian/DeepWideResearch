@@ -10,6 +10,10 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# 同时添加当前目录到路径（用于 Railway 部署）
+current_dir = Path(__file__).parent
+sys.path.insert(0, str(current_dir))
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -18,20 +22,30 @@ from typing import List, Optional, Dict, Any
 import asyncio
 import json
 
-# 现在可以正确导入 engine 模块
-from deep_wide_research.engine import run_deep_research, run_deep_research_stream, Configuration
+# 尝试两种导入方式：开发环境和部署环境
+try:
+    from deep_wide_research.engine import run_deep_research, run_deep_research_stream, Configuration
+except ImportError:
+    from engine import run_deep_research, run_deep_research_stream, Configuration
 
 app = FastAPI(title="PuppyResearch API", version="1.0.0")
 
 # 配置 CORS，允许前端访问
+import os
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else [
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "http://localhost:3002",
+    "http://localhost:4000"
+]
+
+# 如果在生产环境且没有指定 ALLOWED_ORIGINS，允许所有来源
+if not os.getenv("ALLOWED_ORIGINS") and os.getenv("RAILWAY_ENVIRONMENT"):
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001", 
-        "http://localhost:3002",
-        "http://localhost:4000"
-    ],  # Next.js 开发服务器
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
