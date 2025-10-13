@@ -1,19 +1,30 @@
 #!/bin/bash
 
-# 启动 PuppyResearch 后端 API 服务器
+# PuppyResearch 后端启动脚本
+# 自动处理端口占用问题
 
-echo "=================================="
-echo "🐶 Starting PuppyResearch Backend"
-echo "=================================="
+PORT=8000
+PROJECT_DIR="/Users/supersayajin/Desktop/puppyresearch/PuppyResearch"
 
-# 激活虚拟环境
+echo "🔍 Checking if port $PORT is already in use..."
+
+# 查找占用端口的进程
+PID=$(lsof -ti :$PORT)
+
+if [ ! -z "$PID" ]; then
+    echo "⚠️  Port $PORT is in use by process $PID"
+    echo "🛑 Stopping existing process..."
+    kill $PID
+    sleep 2
+    echo "✅ Process stopped"
+else
+    echo "✅ Port $PORT is available"
+fi
+
+echo ""
+echo "🚀 Starting PuppyResearch backend..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+cd "$PROJECT_DIR"
 source researchenv/bin/activate
-
-# 安装依赖（如果需要）
-echo "📦 Checking dependencies..."
-pip install -q -r deep_wide_research/requirements.txt
-
-# 从项目根目录启动服务器（重要！）
-echo "🚀 Starting API server..."
 python deep_wide_research/main.py
-

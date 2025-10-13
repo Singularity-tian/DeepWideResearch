@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_root))
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -35,30 +35,41 @@ import os
 
 # 从环境变量读取允许的来源
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
-if allowed_origins_env:
-    # 如果设置了 ALLOWED_ORIGINS，使用它（可以是逗号分隔的多个域名）
-    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
-else:
-    # 默认允许本地开发环境
-    allowed_origins = [
-        "http://localhost:3000",
-        "http://localhost:3001", 
-        "http://localhost:3002",
-        "http://localhost:4000"
-    ]
+is_production = bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RENDER") or os.getenv("VERCEL"))
 
-# 如果在生产环境且没有指定 ALLOWED_ORIGINS，允许所有来源
-allow_all_origins = False
-if not allowed_origins_env and os.getenv("RAILWAY_ENVIRONMENT"):
+if allowed_origins_env:
+    # 云端部署：使用环境变量中配置的域名
+    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+    allow_all_origins = False
+elif is_production:
+    # 生产环境但未配置 ALLOWED_ORIGINS：安全起见，报错
+    raise ValueError(
+        "⚠️  Production environment detected but ALLOWED_ORIGINS is not set!\n"
+        "Please set the ALLOWED_ORIGINS environment variable with your frontend URL(s).\n"
+        "Example: ALLOWED_ORIGINS=https://your-frontend.vercel.app,https://www.your-domain.com"
+    )
+else:
+    # 本地开发：允许所有来源（方便开发）
     allowed_origins = ["*"]
     allow_all_origins = True
+
+# 打印 CORS 配置（用于调试）
+print("="*80)
+print("🔧 CORS Configuration:")
+print(f"   Environment: {'🌐 Production' if is_production else '💻 Development (Local)'}")
+print(f"   Allowed Origins: {allowed_origins}")
+print(f"   Allow All Origins: {'✅ Yes (*)' if allow_all_origins else '❌ No (Restricted)'}")
+print(f"   Allow Credentials: {'✅ Yes' if not allow_all_origins else '❌ No (incompatible with *)'}")
+print("="*80)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=not allow_all_origins,  # 当允许所有来源时，不能使用 credentials
+    allow_credentials=not allow_all_origins,  # 使用 * 时不能启用 credentials
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
 
 
@@ -145,11 +156,11 @@ async def research(request: ResearchRequest):
     """执行深度研究 - 流式响应"""
     return StreamingResponse(
         research_stream_generator(request),
-        media_type="text/plain",
+        media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
+            "X-Accel-Buffering": "no",
         }
     )
 
