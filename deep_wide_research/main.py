@@ -203,25 +203,31 @@ class MCPTestResponse(BaseModel):
 
 @app.post("/api/mcp/test", response_model=MCPTestResponse)
 async def test_mcp_services(request: MCPTestRequest):
-    """测试 MCP 服务配置状态
+    """测试 MCP 服务连接状态
     
-    检查指定的 MCP 服务是否配置正确（API key 是否设置）。
-    不实际连接 MCP 服务，只验证基本配置。
+    检查 MCP 服务是否可用：
+    - 本地环境：检查 API key 是否设置
+    - 云端环境（HTTP MCP）：实际测试 HTTP 连接
     """
     import os
+    import httpx
+    
+    is_production = bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RENDER") or os.getenv("VERCEL"))
     
     # MCP 服务的配置映射
     mcp_config = {
         "tavily": {
             "api_key_env": "TAVILY_API_KEY",
-            "tools": [
+            "http_url_template": "https://mcp.tavily.com/mcp/?tavilyApiKey={api_key}",
+            "default_tools": [
                 {"name": "tavily-search", "description": "Search the web using Tavily"},
                 {"name": "tavily-extract", "description": "Extract content from URLs"}
             ]
         },
         "exa": {
             "api_key_env": "EXA_API_KEY",
-            "tools": [
+            "http_url_template": "https://mcp.exa.ai/mcp?exaApiKey={api_key}",
+            "default_tools": [
                 {"name": "web_search_exa", "description": "AI-powered web search using Exa"}
             ]
         }
@@ -243,24 +249,77 @@ async def test_mcp_services(request: MCPTestRequest):
         config = mcp_config[service_name_lower]
         api_key = os.getenv(config["api_key_env"])
         
-        if api_key:
-            # API key 已设置，服务应该可用
+        if not api_key:
+            # API key 未设置
+            results.append(MCPServiceStatus(
+                name=service_name,
+                available=False,
+                error=f"API key not set. Please set {config['api_key_env']} environment variable."
+            ))
+            continue
+        
+        # 如果是生产环境，尝试实际测试 HTTP 连接
+        if is_production:
+            try:
+                http_url = config["http_url_template"].format(api_key=api_key)
+                
+                # 尝试连接 MCP HTTP 服务（使用 SSE 连接测试）
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    # 发送 SSE 连接请求
+                    response = await client.get(
+                        http_url,
+                        headers={"Accept": "text/event-stream"}
+                    )
+                    
+                    if response.status_code == 200:
+                        # 连接成功，使用默认工具列表
+                        # TODO: 可以解析 SSE 响应获取实际工具列表
+                        tool_infos = [
+                            MCPToolInfo(name=tool["name"], description=tool["description"])
+                            for tool in config["default_tools"]
+                        ]
+                        
+                        results.append(MCPServiceStatus(
+                            name=service_name,
+                            available=True,
+                            tools=tool_infos
+                        ))
+                    else:
+                        results.append(MCPServiceStatus(
+                            name=service_name,
+                            available=False,
+                            error=f"HTTP {response.status_code}: Cannot connect to MCP service"
+                        ))
+                        
+            except httpx.TimeoutException:
+                results.append(MCPServiceStatus(
+                    name=service_name,
+                    available=False,
+                    error="Connection timeout: MCP service is not responding"
+                ))
+            except httpx.ConnectError:
+                results.append(MCPServiceStatus(
+                    name=service_name,
+                    available=False,
+                    error="Connection refused: Cannot reach MCP service"
+                ))
+            except Exception as e:
+                results.append(MCPServiceStatus(
+                    name=service_name,
+                    available=False,
+                    error=f"Connection failed: {str(e)}"
+                ))
+        else:
+            # 本地环境：只检查 API key，返回默认工具列表
             tool_infos = [
                 MCPToolInfo(name=tool["name"], description=tool["description"])
-                for tool in config["tools"]
+                for tool in config["default_tools"]
             ]
             
             results.append(MCPServiceStatus(
                 name=service_name,
                 available=True,
                 tools=tool_infos
-            ))
-        else:
-            # API key 未设置
-            results.append(MCPServiceStatus(
-                name=service_name,
-                available=False,
-                error=f"API key not set. Please set {config['api_key_env']} environment variable."
             ))
     
     return MCPTestResponse(services=results)

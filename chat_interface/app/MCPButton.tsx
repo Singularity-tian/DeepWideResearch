@@ -19,6 +19,11 @@ export interface MCPButtonProps {
   onServiceChange: (service: McpService) => void
 }
 
+interface ToolResponse {
+  name: string
+  description?: string
+}
+
 export default function MCPButton({ service, onServiceChange }: MCPButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
@@ -90,10 +95,10 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
         setTestStatus('success')
         setConnectionStatus('connected')
         setTestMessage(`✅ Connected! Found ${serviceStatus.tools.length} tool(s)`)
-        setAvailableTools(serviceStatus.tools.map((t: any) => t.name))
+        setAvailableTools(serviceStatus.tools.map((t: ToolResponse) => t.name))
         
         // 更新工具列表为实际可用的工具（如果后端返回了不同的工具）
-        const actualTools = serviceStatus.tools.map((t: any) => ({
+        const actualTools = serviceStatus.tools.map((t: ToolResponse) => ({
           name: t.name,
           enabled: true,
           description: t.description || ''
