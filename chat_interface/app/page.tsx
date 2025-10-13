@@ -119,6 +119,7 @@ export default function Home() {
     ]
   })
 
+
   // 添加调试信息 - 显示当前参数状态
   React.useEffect(() => {
     console.log('📊 Current research params:', researchParams)

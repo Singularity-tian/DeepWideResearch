@@ -33,25 +33,26 @@ app = FastAPI(title="PuppyResearch API", version="1.0.0")
 # 配置 CORS，允许前端访问
 import os
 
-# 从环境变量读取允许的来源
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+# 检测是否为生产环境
 is_production = bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RENDER") or os.getenv("VERCEL"))
 
-if allowed_origins_env:
-    # 云端部署：使用环境变量中配置的域名
-    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
-    allow_all_origins = False
-elif is_production:
-    # 生产环境但未配置 ALLOWED_ORIGINS：安全起见，报错
-    raise ValueError(
-        "⚠️  Production environment detected but ALLOWED_ORIGINS is not set!\n"
-        "Please set the ALLOWED_ORIGINS environment variable with your frontend URL(s).\n"
-        "Example: ALLOWED_ORIGINS=https://your-frontend.vercel.app,https://www.your-domain.com"
-    )
+if is_production:
+    # 生产环境：必须使用环境变量配置
+    allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+    if allowed_origins_env:
+        allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+        allow_all_origins = False
+    else:
+        raise ValueError(
+            "⚠️  Production environment detected but ALLOWED_ORIGINS is not set!\n"
+            "Please set the ALLOWED_ORIGINS environment variable with your frontend URL(s).\n"
+            "Example: ALLOWED_ORIGINS=https://your-frontend.vercel.app,https://www.your-domain.com"
+        )
 else:
-    # 本地开发：允许所有来源（方便开发）
+    # 本地开发：永远允许所有来源（方便开发）
     allowed_origins = ["*"]
     allow_all_origins = True
+    print("💡 Tip: Running in development mode with CORS set to allow all origins (*)")
 
 # 打印 CORS 配置（用于调试）
 print("="*80)
@@ -121,6 +122,17 @@ async def health_check():
     return {"status": "healthy"}
 
 
+@app.get("/api/mcp/status")
+async def mcp_status():
+    """检查 MCP 环境变量状态（调试用）"""
+    import os
+    return {
+        "tavily_api_key_set": bool(os.getenv("TAVILY_API_KEY")),
+        "exa_api_key_set": bool(os.getenv("EXA_API_KEY")),
+        "openai_api_key_set": bool(os.getenv("OPENAI_API_KEY"))
+    }
+
+
 async def research_stream_generator(request: ResearchRequest):
     """生成研究流式响应"""
     try:
@@ -163,6 +175,95 @@ async def research(request: ResearchRequest):
             "X-Accel-Buffering": "no",
         }
     )
+
+
+class MCPTestRequest(BaseModel):
+    """MCP 测试请求模型"""
+    services: List[str]  # 要测试的服务名称列表，如 ["tavily", "exa"]
+
+
+class MCPToolInfo(BaseModel):
+    """MCP 工具信息"""
+    name: str
+    description: str = ""
+
+
+class MCPServiceStatus(BaseModel):
+    """MCP 服务状态"""
+    name: str
+    available: bool
+    tools: List[MCPToolInfo] = []
+    error: Optional[str] = None
+
+
+class MCPTestResponse(BaseModel):
+    """MCP 测试响应模型"""
+    services: List[MCPServiceStatus]
+
+
+@app.post("/api/mcp/test", response_model=MCPTestResponse)
+async def test_mcp_services(request: MCPTestRequest):
+    """测试 MCP 服务配置状态
+    
+    检查指定的 MCP 服务是否配置正确（API key 是否设置）。
+    不实际连接 MCP 服务，只验证基本配置。
+    """
+    import os
+    
+    # MCP 服务的配置映射
+    mcp_config = {
+        "tavily": {
+            "api_key_env": "TAVILY_API_KEY",
+            "tools": [
+                {"name": "tavily-search", "description": "Search the web using Tavily"},
+                {"name": "tavily-extract", "description": "Extract content from URLs"}
+            ]
+        },
+        "exa": {
+            "api_key_env": "EXA_API_KEY",
+            "tools": [
+                {"name": "web_search_exa", "description": "AI-powered web search using Exa"}
+            ]
+        }
+    }
+    
+    results = []
+    for service_name in request.services:
+        service_name_lower = service_name.lower()
+        
+        # 检查服务是否在配置中
+        if service_name_lower not in mcp_config:
+            results.append(MCPServiceStatus(
+                name=service_name,
+                available=False,
+                error=f"Unknown service '{service_name}'. Supported: Tavily, Exa"
+            ))
+            continue
+        
+        config = mcp_config[service_name_lower]
+        api_key = os.getenv(config["api_key_env"])
+        
+        if api_key:
+            # API key 已设置，服务应该可用
+            tool_infos = [
+                MCPToolInfo(name=tool["name"], description=tool["description"])
+                for tool in config["tools"]
+            ]
+            
+            results.append(MCPServiceStatus(
+                name=service_name,
+                available=True,
+                tools=tool_infos
+            ))
+        else:
+            # API key 未设置
+            results.append(MCPServiceStatus(
+                name=service_name,
+                available=False,
+                error=f"API key not set. Please set {config['api_key_env']} environment variable."
+            ))
+    
+    return MCPTestResponse(services=results)
 
 
 if __name__ == "__main__":

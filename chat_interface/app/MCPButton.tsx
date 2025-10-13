@@ -21,6 +21,10 @@ export interface MCPButtonProps {
 
 export default function MCPButton({ service, onServiceChange }: MCPButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
+  const [testMessage, setTestMessage] = useState('')
+  const [availableTools, setAvailableTools] = useState<string[]>([])
+  const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown')
 
   // 点击外部关闭面板
   React.useEffect(() => {
@@ -59,6 +63,64 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
     onServiceChange(newService)
   }
 
+  const handleTestConnection = async () => {
+    setTestStatus('testing')
+    setTestMessage('Testing connection...')
+    
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${apiUrl}/api/mcp/test`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          services: [service.name]
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      const serviceStatus = data.services[0]
+
+      if (serviceStatus.available) {
+        setTestStatus('success')
+        setConnectionStatus('connected')
+        setTestMessage(`✅ Connected! Found ${serviceStatus.tools.length} tool(s)`)
+        setAvailableTools(serviceStatus.tools.map((t: any) => t.name))
+        
+        // 更新工具列表为实际可用的工具（如果后端返回了不同的工具）
+        const actualTools = serviceStatus.tools.map((t: any) => ({
+          name: t.name,
+          enabled: true,
+          description: t.description || ''
+        }))
+        
+        onServiceChange({
+          ...service,
+          enabled: true,
+          tools: actualTools
+        })
+      } else {
+        setTestStatus('error')
+        setConnectionStatus('disconnected')
+        setTestMessage(serviceStatus.error || 'Connection failed')
+      }
+    } catch (error) {
+      setTestStatus('error')
+      setConnectionStatus('disconnected')
+      setTestMessage(error instanceof Error ? error.message : 'Test failed')
+    }
+  }
+
+  // 组件挂载时自动测试一次
+  React.useEffect(() => {
+    handleTestConnection()
+  }, [])
+
   return (
     <div style={{ position: 'relative' }}>
       {/* MCP Tool Panel */}
@@ -90,32 +152,117 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
           <div style={{ 
             marginBottom: '12px',
             paddingBottom: '8px',
-            borderBottom: '1px solid #2a2a2a'
+            borderBottom: '1px solid #2a2a2a',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
           }}>
             <div style={{ 
               fontSize: '10px', 
               color: '#888', 
               textTransform: 'uppercase', 
-              letterSpacing: '0.5px'
+              letterSpacing: '0.5px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
             }}>
-              <div style={{
+              <img 
+                src={service.name === 'Tavily' ? '/tavilylogo.png' : '/exalogo.png'}
+                alt={`${service.name} logo`}
+                style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '2px',
+                  objectFit: 'contain'
+                }}
+              />
+              {service.name} Tools
+              {/* Status Indicator */}
+              <div 
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: connectionStatus === 'connected' 
+                    ? '#4ade80'
+                    : connectionStatus === 'disconnected'
+                    ? '#ef4444'
+                    : '#888',
+                  boxShadow: connectionStatus === 'connected'
+                    ? '0 0 6px rgba(74, 222, 128, 0.6)'
+                    : 'none',
+                  animation: testStatus === 'testing' ? 'pulse 1.5s ease-in-out infinite' : 'none'
+                }}
+                title={connectionStatus === 'connected' ? 'Connected' : connectionStatus === 'disconnected' ? 'Disconnected' : 'Unknown'}
+              />
+            </div>
+            
+            {/* Refresh Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleTestConnection()
+              }}
+              disabled={testStatus === 'testing'}
+              title="Refresh connection status"
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '9px',
+                border: 'none',
+                background: 'transparent',
+                color: testStatus === 'testing' ? '#888' : '#bbb',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
-              }}>
-                <img 
-                  src={service.name === 'Tavily' ? '/tavilylogo.png' : '/exalogo.png'}
-                  alt={`${service.name} logo`}
-                  style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '2px',
-                    objectFit: 'contain'
-                  }}
+                justifyContent: 'center',
+                cursor: testStatus === 'testing' ? 'not-allowed' : 'pointer',
+                padding: 0,
+                transition: 'all 150ms ease',
+                opacity: testStatus === 'testing' ? 0.6 : 0.8
+              }}
+              onMouseEnter={(e) => {
+                if (testStatus !== 'testing') {
+                  e.currentTarget.style.opacity = '1'
+                  e.currentTarget.style.color = '#e6e6e6'
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '0.8'
+                e.currentTarget.style.color = '#bbb'
+              }}
+            >
+              <svg 
+                width="12" 
+                height="12" 
+                viewBox="0 0 24 24" 
+                fill="none"
+                style={{
+                  animation: testStatus === 'testing' ? 'spin 1s linear infinite' : 'none'
+                }}
+              >
+                <path 
+                  d="M1 4v6h6M23 20v-6h-6" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
                 />
-                {service.name} Tools
-              </div>
-            </div>
+                <path 
+                  d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <style>{`
+              @keyframes spin { to { transform: rotate(360deg); } }
+              @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.3; }
+              }
+            `}</style>
           </div>
 
           {/* Tools List */}
@@ -168,6 +315,69 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
               )}
             </div>
           ))}
+
+          {/* Error Message Section */}
+          {connectionStatus === 'disconnected' && testMessage && (
+            <div style={{
+              marginTop: '12px',
+              paddingTop: '12px',
+              borderTop: '1px solid #2a2a2a'
+            }}>
+              <div style={{
+                padding: '8px 10px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '8px',
+                fontSize: '11px',
+                color: '#ef4444',
+                lineHeight: '1.5'
+              }}>
+                <div style={{ 
+                  fontWeight: '600',
+                  marginBottom: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  Connection Failed
+                </div>
+                <div style={{ color: '#fca5a5', fontSize: '10px' }}>
+                  {testMessage}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Success Message Section */}
+          {connectionStatus === 'connected' && availableTools.length > 0 && (
+            <div style={{
+              marginTop: '12px',
+              paddingTop: '12px',
+              borderTop: '1px solid #2a2a2a'
+            }}>
+              <div style={{
+                padding: '6px 10px',
+                background: 'rgba(74, 222, 128, 0.08)',
+                border: '1px solid rgba(74, 222, 128, 0.2)',
+                borderRadius: '6px',
+                fontSize: '10px',
+                color: '#86efac',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Connected • {availableTools.length} tool{availableTools.length > 1 ? 's' : ''} available
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
