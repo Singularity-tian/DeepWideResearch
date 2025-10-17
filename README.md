@@ -26,7 +26,9 @@
   <strong>One API, all RAG scenarios</strong>
 </p>
 
----
+<p align="center">
+  <img src="chat_interface/public/chatinterface.png" alt="Deep & Wide Research Chat Interface" />
+</p>
 
 ## Why Do You Need Open Deep Wide Research?
 
