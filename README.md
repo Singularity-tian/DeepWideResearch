@@ -8,15 +8,12 @@
   <a href="https://www.puppyagent.com" target="_blank">
     <img src="https://img.shields.io/badge/Web-puppyagent.com-39BC66?style=flat&logo=google-chrome&logoColor=white" alt="Homepage" height="22" />
   </a>
-  &nbsp;
   <a href="https://x.com/PuppyAgentTech" target="_blank">
     <img src="https://img.shields.io/badge/X-@PuppyAgentTech-000000?style=flat&logo=x&logoColor=white" alt="X (Twitter)" height="22" />
   </a>
-  &nbsp;
   <a href="https://discord.gg/puppychat" target="_blank">
     <img src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord" height="22" />
   </a>
-  &nbsp;
   <a href="mailto:support@puppyagent.com">
     <img src="https://img.shields.io/badge/Support-support@puppyagent.com-F44336?style=flat&logo=gmail&logoColor=white" alt="Support" height="22" />
   </a>
@@ -27,7 +24,7 @@
 </p>
 
 <p align="center">
-  <img src="chat_interface/public/chatinterface.png" alt="Deep & Wide Research Chat Interface" />
+  <img src="chat_interface/public/chatinterface.png" alt="Deep & Wide Research Chat Interface" width="700" />
 </p>
 
 ## Why Do You Need Open Deep Wide Research?
