@@ -24,7 +24,7 @@
 </p>
 
 <p align="center">
-  <img src="chat_interface/public/chatinterface.png" alt="Deep & Wide Research Chat Interface" width="700" />
+  <img src="chat_interface/public/chatinterface.png" alt="Deep & Wide Research Chat Interface" width="600" />
 </p>
 
 ## Why Do You Need Open Deep Wide Research?
