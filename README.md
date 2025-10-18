@@ -91,6 +91,8 @@ EXA_API_KEY=your_exa_key
 TAVILY_API_KEY=your_tavily_key
 ```
 
+> You can obtain the Tavily and Exa API keys from their official sites: [Tavily](https://www.tavily.com/) and [Exa](https://exa.ai/).
+
 3. Set up and run the API server:
 
 ```bash
@@ -103,16 +105,21 @@ uvicorn main:app --reload --port 8000
 
 ### Frontend
 
-Create `chat_interface/.env.local` (you can copy from the template):
+1. Copy the env template:
 
 ```bash
 cp chat_interface/env.example chat_interface/.env.local
 ```
 
+2. Install dependencies and start the dev server:
+
 ```bash
 cd chat_interface
-npm install && npm run dev
+npm install
+npm run dev
 ```
+
+3. Open the app:
 
 Open **http://localhost:3000** – Start researching in seconds.
 
@@ -124,14 +131,18 @@ docker-compose up -d
 
 ---
 
-## Documentation
 
-- [Integration Guide](INTEGRATION_GUIDE.md) – Connect your own LLM providers
-- [Railway Deploy](RAILWAY_DEPLOY.md) – One-click cloud deployment
-- [Deep/Wide Grid Design](DEEP_WIDE_GRID_DESIGN.md) – Architecture deep dive
+
+### Deep Wide Research Archietecture
+
+<p align="center">
+  <img src="chat_interface/public/archietecture.png" alt="Deep & Wide Research Architecture" width="960" />
+</p>
 
 ---
 
 ## License
 
-Apache 2.0 – See [LICENSE](LICENSE) file.
+This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2025 PuppyAgent and contributors.
