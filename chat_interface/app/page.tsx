@@ -228,7 +228,7 @@ export default function Home() {
     }
   }
 
-  const handleSendMessage = async (message: string, onStreamUpdate?: (content: string, isStreaming?: boolean) => void) => {
+  const handleSendMessage = async (message: string, onStreamUpdate?: (content: string, isStreaming?: boolean, statusHistory?: string[]) => void) => {
     // 🔒 Key: Lock the current sessionId at the start of the function, prevent state confusion from session switching
     let targetSessionId = currentSessionId
     
@@ -309,7 +309,7 @@ export default function Home() {
         throw new Error('No response body reader available')
       }
 
-      let currentStatus = ''
+      let statusHistory: string[] = [] // 📜 累积所有状态步骤
       let finalReport = ''
 
       // Read streaming response
@@ -327,10 +327,10 @@ export default function Home() {
               
               if (data.action === 'complete' && data.final_report) {
                 finalReport = data.final_report
-                onStreamUpdate?.(finalReport, false) // Mark streaming end
+                onStreamUpdate?.(finalReport, false, statusHistory) // 传递完整历史
               } else if (data.message) {
-                currentStatus = data.message
-                onStreamUpdate?.(currentStatus, true) // Mark streaming in progress
+                statusHistory.push(data.message) // 👈 追加到历史，不覆盖
+                onStreamUpdate?.(data.message, true, statusHistory) // 传递当前消息和完整历史
               }
             } catch (e) {
               console.warn('Failed to parse SSE data:', line)
@@ -340,7 +340,7 @@ export default function Home() {
       }
 
       // ✅ Add assistant reply to Context
-      const assistantMessage: ChatMessage = { role: 'assistant', content: finalReport || currentStatus, timestamp: Date.now() }
+      const assistantMessage: ChatMessage = { role: 'assistant', content: finalReport || statusHistory[statusHistory.length - 1] || '', timestamp: Date.now() }
       addMessage(targetSessionId, assistantMessage)
       
       // ✅ Save to backend
@@ -353,7 +353,7 @@ export default function Home() {
         setChatComponentKey(targetSessionId)
       }
       
-      return finalReport || currentStatus
+      return finalReport || statusHistory[statusHistory.length - 1] || ''
       
     } catch (error) {
       console.error('Error calling research API:', error)

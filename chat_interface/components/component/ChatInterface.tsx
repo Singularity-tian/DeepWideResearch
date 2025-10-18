@@ -16,7 +16,7 @@ export interface Message {
 
 // Add component Props interface
 export interface ChatInterfaceProps {
-  onSendMessage?: (message: string, onStreamUpdate?: (content: string, isStreaming?: boolean) => void) => Promise<string> | string
+  onSendMessage?: (message: string, onStreamUpdate?: (content: string, isStreaming?: boolean, statusHistory?: string[]) => void) => Promise<string> | string
   initialMessages?: Message[]
   placeholder?: string
   title?: string
@@ -110,6 +110,7 @@ export default function ChatInterface({
   const [isTyping, setIsTyping] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
   const [streamingStatus, setStreamingStatus] = useState<string>('')
+  const [streamingHistory, setStreamingHistory] = useState<string[]>([]) // 📜 存储所有历史步骤
   const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -160,6 +161,7 @@ export default function ChatInterface({
           setIsTyping(false)
           setIsStreaming(false)
           setStreamingStatus('')
+          setStreamingHistory([])
         }
       }
     }
@@ -326,14 +328,16 @@ export default function ChatInterface({
       let response: string
       if (onSendMessage) {
         // Create streaming callback
-        const onStreamUpdate = (content: string, streaming: boolean = true) => {
+        const onStreamUpdate = (content: string, streaming: boolean = true, statusHistory: string[] = []) => {
           if (streaming) {
             setIsTyping(false)  // Close typing state
             setStreamingStatus(content)
+            setStreamingHistory(statusHistory) // 📜 更新完整的历史步骤
             setIsStreaming(true)
           } else {
             setIsStreaming(false)
             setStreamingStatus('')
+            setStreamingHistory([]) // 清空历史
           }
         }
         
@@ -401,14 +405,16 @@ export default function ChatInterface({
       let response: string
       if (onSendMessage) {
         // Create streaming callback
-        const onStreamUpdate = (content: string, streaming: boolean = true) => {
+        const onStreamUpdate = (content: string, streaming: boolean = true, statusHistory: string[] = []) => {
           if (streaming) {
             setIsTyping(false)  // Close typing state
             setStreamingStatus(content)
+            setStreamingHistory(statusHistory) // 📜 更新完整的历史步骤
             setIsStreaming(true)
           } else {
             setIsStreaming(false)
             setStreamingStatus('')
+            setStreamingHistory([]) // 清空历史
           }
         }
         
@@ -758,6 +764,7 @@ export default function ChatInterface({
             }}
             isTyping={isTyping && !isStreaming}
             streamingStatus={isStreaming ? streamingStatus : undefined}
+            streamingHistory={streamingHistory} 
             isStreaming={isStreaming}
             showAvatar={false}
           />

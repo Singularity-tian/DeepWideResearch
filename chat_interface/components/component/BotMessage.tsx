@@ -22,10 +22,11 @@ export interface BotMessageProps {
   showAvatar?: boolean
   isTyping?: boolean
   streamingStatus?: string  // For status updates like "thinking", "using tools", etc.
+  streamingHistory?: string[] // 📜 完整的状态历史记录
   isStreaming?: boolean      // For report content streaming
 }
 
-export default function BotMessage({ message, showAvatar = true, isTyping = false, streamingStatus, isStreaming = false }: BotMessageProps) {
+export default function BotMessage({ message, showAvatar = true, isTyping = false, streamingStatus, streamingHistory = [], isStreaming = false }: BotMessageProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -185,10 +186,80 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
           </div>
         ) : (
           <>
-            {/* Status streaming with flash animation (thinking, using tools, etc.) */}
-            {streamingStatus && (
-              <div style={styles.statusStreaming}>
-                {streamingStatus}
+            {/* 📜 历史步骤记录 - 时间线样式 */}
+            {streamingHistory && streamingHistory.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '12px', width: '100%' }}>
+                {streamingHistory.map((step, index) => {
+                  const isCurrentStep = index === streamingHistory.length - 1
+                  const isCompleted = !isCurrentStep
+                  const isLastItem = index === streamingHistory.length - 1
+                  
+                  return (
+                    <div 
+                      key={index}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '12px',
+                        position: 'relative'
+                      }}
+                    >
+                      {/* 左侧时间线容器 */}
+                      <div style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center',
+                        flexShrink: 0,
+                        position: 'relative',
+                        paddingTop: '5px'
+                      }}>
+                        {/* 圆点 */}
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: isCompleted ? '#888' : 'transparent', // 实心灰色 vs 空心灰色
+                          border: isCompleted ? 'none' : '2px solid #888',
+                          flexShrink: 0,
+                          zIndex: 1
+                        }} />
+                        
+                        {/* 连接线 - 除了最后一项都显示 */}
+                        {!isLastItem && (
+                          <div style={{
+                            width: '2px',
+                            height: '20px',
+                            backgroundColor: '#666',
+                            opacity: 0.4,
+                            marginTop: '2px'
+                          }} />
+                        )}
+                      </div>
+                      
+                      {/* 步骤文本 */}
+                      <div
+                        style={{
+                          fontSize: '14px',
+                          color: 'transparent',
+                          padding: 0,
+                          backgroundImage: isCompleted
+                            ? 'linear-gradient(90deg, #999 0%, #999 100%)' // 已完成：静态浅灰色
+                            : 'linear-gradient(90deg, #888 0%, #888 30%, #fff 50%, #888 70%, #888 100%)', // 进行中：滚动渐变
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          backgroundSize: isCompleted ? '100% 100%' : '200% 100%',
+                          animation: isCompleted ? 'none' : 'textFlash 2s linear infinite',
+                          transition: 'opacity 0.3s ease-in-out',
+                          opacity: isCompleted ? 0.8 : 1,
+                          lineHeight: '1.6',
+                          flex: 1
+                        }}
+                      >
+                        {step}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
             
