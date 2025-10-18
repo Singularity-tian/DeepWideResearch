@@ -484,7 +484,7 @@ export default function Home() {
                   color: '#666',
                   letterSpacing: '0.3px'
                 }}>
-                  Deep Wide Research
+                  Open Deep Wide Research
                 </span>
               </div>
 

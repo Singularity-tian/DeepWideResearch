@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "Deep Wide Research",
   description: "AI-powered deep and wide research assistant",
   icons: {
-    icon: '/SimpleDWlogo.svg',
+    icon: '/SimpleDWlogoBlackBG.svg',
   },
 };
 
