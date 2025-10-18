@@ -93,14 +93,19 @@ TAVILY_API_KEY=your_tavily_key
 
 > You can obtain the Tavily and Exa API keys from their official sites: [Tavily](https://www.tavily.com/) and [Exa](https://exa.ai/).
 
-3. Set up and run the API server:
+3. Set up the environment:
 
 ```bash
 cd deep_wide_research
-python -m venv venv && source venv/bin/activate
+python -m venv deep-wide-research
+source deep-wide-research/bin/activate
 pip install -r requirements.txt
+```
 
-uvicorn main:app --reload --port 8000
+4. Start the backend server:
+
+```bash
+python main.py
 ```
 
 ### Frontend

@@ -3,7 +3,7 @@
 This module encapsulates the research step, fetching information from
 external search providers and returning raw notes.
 
-采用基于 Prompt 的工具调用方式，不使用 OpenAI function call API。
+Uses prompt-based tool invocation without OpenAI function call API.
 """
 
 from __future__ import annotations
@@ -15,39 +15,39 @@ import sys
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-# 支持直接运行和模块导入 - 尝试绝对导入和相对导入
+# Support both direct execution and module import - try absolute and relative imports
 try:
-    # 尝试作为包的一部分导入（开发环境）
+    # Try importing as part of a package (development environment)
     from .providers import chat_complete
     from .mcp_client import get_registry
     from .newprompt import create_unified_research_prompt
 except ImportError:
-    # 尝试绝对导入（直接运行或部署环境）
+    # Try absolute import (direct execution or deployment environment)
     try:
         from deep_wide_research.providers import chat_complete
         from deep_wide_research.mcp_client import get_registry
         from deep_wide_research.newprompt import create_unified_research_prompt
     except ImportError:
-        # 作为独立模块导入（Railway 部署环境）
+        # Import as standalone module (Railway deployment environment)
         from providers import chat_complete
         from mcp_client import get_registry
         from newprompt import create_unified_research_prompt
 
 
-# MCP 工具选择配置：{server_name: [tool_names]}
+# MCP tool selection configuration: {server_name: [tool_names]}
 MCP_TOOLS_CONFIG = {
     "tavily": ["tavily-search"],
     "exa": ["web_search_exa"]
 }
 
 def build_mcp_tools_description(tools: List[Dict[str, Any]]) -> str:
-    """构建 MCP 工具描述，用于插入到 unified_research_prompt
+    """Build MCP tool description for insertion into unified_research_prompt
     
     Args:
-        tools: MCP 工具列表
+        tools: List of MCP tools
     
     Returns:
-        工具描述文本
+        Tool description text
     """
     if not tools:
         return "\n**Note**: No additional search tools are currently available."
@@ -76,7 +76,7 @@ def build_mcp_tools_description(tools: List[Dict[str, Any]]) -> str:
     
     tools_list = "\n\n".join(tools_description)
     
-    # 工具调用格式说明
+    # Tool call format description
     example_tool = tools[0]
     example_name = example_tool.get("name", "tool_name")
     example_args = {}
@@ -100,9 +100,9 @@ You can call multiple tools in parallel by including multiple <tool_call> blocks
 
 
 def parse_tool_calls(content: str) -> List[Dict[str, Any]]:
-    """从 LLM 响应中解析工具调用
+    """Parse tool calls from LLM response
     
-    示例输入:
+    Example input:
     <tool_call>
     {
       "tool": "tavily_search",
@@ -110,17 +110,17 @@ def parse_tool_calls(content: str) -> List[Dict[str, Any]]:
     }
     </tool_call>
     
-    返回: [{"tool": "tavily_search", "arguments": {...}, "id": "call_1"}]
+    Returns: [{"tool": "tavily_search", "arguments": {...}, "id": "call_1"}]
     """
     tool_calls = []
     
-    # 使用正则提取所有 <tool_call>...</tool_call> 块
+    # Use regex to extract all <tool_call>...</tool_call> blocks
     pattern = r'<tool_call>(.*?)</tool_call>'
     matches = re.findall(pattern, content, re.DOTALL)
     
     for idx, match in enumerate(matches):
         try:
-            # 尝试解析 JSON
+            # Try parsing JSON
             tool_data = json.loads(match.strip())
             tool_calls.append({
                 "id": f"call_{idx + 1}",
@@ -138,20 +138,20 @@ async def _execute_single_tool(
     tc: Dict[str, Any],
     mcp_clients: List
 ) -> Dict[str, Any]:
-    """执行单个工具调用"""
+    """Execute a single tool call"""
     result = None
     for client in mcp_clients:
         try:
             result = await client.call_tool(tc["tool"], tc["arguments"])
             result = json.dumps(result)
-            break  # 成功就停止
+            break  # Stop if successful
         except:
-            continue  # 失败就尝试下一个 client
+            continue  # Try next client on failure
     
     if result is None:
         result = json.dumps({"error": f"Tool '{tc['tool']}' not found in any MCP server"})
     
-    # 输出工具结果
+    # Output tool result
     print(f"\n✓ Tool '{tc['tool']}' result ({len(result)} chars)")
     print(f"{'='*60}")
     
@@ -166,11 +166,11 @@ async def execute_tool_calls(
     tool_calls: List[Dict[str, Any]],
     mcp_clients: List
 ) -> List[Dict[str, Any]]:
-    """并行执行所有工具调用并返回结果列表"""
+    """Execute all tool calls in parallel and return results list"""
     if not tool_calls:
         return []
     
-    # 并行执行所有工具调用
+    # Execute all tool calls in parallel
     tool_results = await asyncio.gather(
         *[_execute_single_tool(tc, mcp_clients) for tc in tool_calls]
     )
@@ -189,23 +189,23 @@ async def run_research_llm_driven(
     wide_param: float = 0.5,
     status_callback=None
 ) -> Dict[str, str]:
-    """LLM 驱动的研究循环 - 使用 unified_research_prompt
+    """LLM-driven research loop using unified_research_prompt
     
     Args:
-        topic: 研究主题
-        cfg: 配置对象
-        api_keys: API 密钥字典
-        status_callback: 状态回调函数，用于发送实时状态更新
+        topic: Research topic
+        cfg: Configuration object
+        api_keys: API key dictionary
+        status_callback: Status callback function for sending real-time updates to frontend
     """
     if not topic:
         empty_json = json.dumps({"topic": "", "tool_calls": []}, ensure_ascii=False)
         return {"raw_notes": empty_json}
     
-    # 1. 收集 MCP 工具 - 使用前端传来的配置或默认配置
+    # 1. Collect MCP tools - use configuration from frontend or default
     print("\n🔍 Collecting tools from MCP servers...")
     registry = get_registry()
     
-    # 使用前端传来的 MCP 配置，如果没有则使用默认配置
+    # Use MCP configuration from frontend, or use default if not provided
     effective_config = mcp_config or MCP_TOOLS_CONFIG
     print(f"📋 Using MCP config: {effective_config}")
     
@@ -226,7 +226,7 @@ async def run_research_llm_driven(
     for tool in mcp_tools:
         print(f"  - {tool.get('name', 'unknown')}")
     
-    # 2. 构建 system prompt - 使用 create_unified_research_prompt 动态生成
+    # 2. Build system prompt - dynamically generate using create_unified_research_prompt
     mcp_prompt = build_mcp_tools_description(mcp_tools)
     max_iterations = getattr(cfg, 'max_react_tool_calls', 8)
     
@@ -246,12 +246,12 @@ async def run_research_llm_driven(
     print(messages)
     
     max_steps = getattr(cfg, 'max_react_tool_calls', 8)
-    conversation_history = []  # 保存完整对话历史用于最终返回
-    tool_interactions: List[Dict[str, Any]] = []  # 累积所有工具调用及结果（用于 JSON raw_notes）
+    conversation_history = []  # Save complete conversation history for final return
+    tool_interactions: List[Dict[str, Any]] = []  # Accumulate all tool calls and results (for JSON raw_notes)
 
-    # 工具调用循环
+    # Tool calling loop
     for step in range(max_steps):
-        # 调用 LLM（纯对话模式）
+        # Call LLM (pure conversation mode)
         resp = await chat_complete(
             model=cfg.research_model,
             messages=messages,
@@ -259,10 +259,10 @@ async def run_research_llm_driven(
             api_keys=api_keys,
         )
         
-        # 解析响应中的工具调用
+        # Parse tool calls from response
         tool_calls = parse_tool_calls(resp.content)
         
-        # 输出 LLM 原始响应
+        # Output raw LLM response
         print(f"\n{'='*60}")
         print(f"[Step {step+1}] LLM Output:")
         print(f"{'='*60}")
@@ -273,11 +273,11 @@ async def run_research_llm_driven(
                 print(f"  - {tc['tool']}: {tc['arguments']}")
         print(f"{'='*60}")
         
-        # 保存助手响应到历史
+        # Save assistant response to history
         conversation_history.append({"role": "assistant", "content": resp.content})
         
         if not tool_calls:
-            # 没有工具调用，说明 LLM 已经给出最终答案
+            # No tool calls, LLM has provided final answer
             raw_json = json.dumps({
                 "topic": topic,
                 "tool_calls": tool_interactions,
@@ -286,33 +286,33 @@ async def run_research_llm_driven(
                 "raw_notes": raw_json
             }
         
-        # 检查是否调用了 ResearchComplete
+        # Check if ResearchComplete was called
         if any(tc["tool"] == "ResearchComplete" for tc in tool_calls):
             print("\n✅ Research completed by agent")
             return {
                 "raw_notes": "\n\n".join([m["content"] for m in conversation_history if m.get("content")])
             }
         
-        # 添加助手消息到对话
+        # Add assistant message to conversation
         messages.append({"role": "assistant", "content": resp.content})
         
-        # 发送状态更新 - 告诉前端正在使用哪些工具
+        # Send status update - notify frontend which tools are being used
         if status_callback and tool_calls:
             tools_being_used = [tc["tool"] for tc in tool_calls]
-            unique_tools = list(set(tools_being_used))  # 去重
-            tools_text = ", ".join(unique_tools[:3])  # 最多显示3个工具
+            unique_tools = list(set(tools_being_used))  # Deduplicate
+            tools_text = ", ".join(unique_tools[:3])  # Show max 3 tools
             await status_callback(f"using {tools_text}...")
         
-        # 执行所有工具调用
+        # Execute all tool calls
         tool_results = await execute_tool_calls(tool_calls, mcp_clients)
 
-        # 记录本轮工具调用及结果（结构化为 JSON 项）
+        # Record this round's tool calls and results (structured as JSON items)
         call_info_map = {tc["id"]: {"tool": tc["tool"], "arguments": tc.get("arguments", {})} for tc in tool_calls}
         for tr in tool_results:
             call_id = tr.get("tool_call_id")
             info = call_info_map.get(call_id, {})
             result_text = tr.get("result", "")
-            # 优先尝试解析为 JSON
+            # Prioritize parsing as JSON
             parsed_result: Any
             try:
                 parsed_result = json.loads(result_text)
@@ -326,8 +326,8 @@ async def run_research_llm_driven(
                 "result": parsed_result,
             })
         
-        # 将工具结果添加回对话
-        # 格式化为易读的文本，让 LLM 理解
+        # Add tool results back to conversation
+        # Format as readable text for LLM understanding
         results_text = "\n\n".join([
             f"<tool_result tool_call_id=\"{tr['tool_call_id']}\" tool=\"{tr['tool']}\">\n{tr['result']}\n</tool_result>"
             for tr in tool_results
@@ -336,8 +336,7 @@ async def run_research_llm_driven(
         messages.append({"role": "user", "content": f"Tool results:\n{results_text}"})
         conversation_history.append({"role": "tool_results", "content": results_text})
     
-    # 达到最大步数，返回已有的内容
-    # 达到最大步数，返回已收集到的工具交互 JSON
+    # Reached max steps, return collected tool interactions as JSON
     raw_json = json.dumps({
         "topic": topic,
         "tool_calls": tool_interactions,
@@ -346,7 +345,7 @@ async def run_research_llm_driven(
 
 
 if __name__ == "__main__":
-    """在 VSCode 中直接点击 Run 按钮即可测试"""
+    """Can test directly by clicking Run button in VSCode"""
     import asyncio
     
     class TestConfig:
@@ -355,6 +354,6 @@ if __name__ == "__main__":
         max_react_tool_calls = 3
     
     async def test():
-        result = await run_research_llm_driven("德国大众的过去50年的历史，以及它早期的发展路线?", TestConfig())
+        result = await run_research_llm_driven("History of Volkswagen over the past 50 years and its early development path?", TestConfig())
     
     asyncio.run(test())

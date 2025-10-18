@@ -16,16 +16,16 @@ import os
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 
-# 加载 .env 文件
+# Load .env file
 try:
     from dotenv import load_dotenv
     from pathlib import Path
     
-    # 明确指定 .env 文件路径（在当前文件所在目录）
+    # Explicitly specify .env file path (in the current file directory)
     env_path = Path(__file__).parent / ".env"
     load_dotenv(dotenv_path=env_path)
 except ImportError:
-    pass  # 如果没安装 python-dotenv，继续使用系统环境变量
+    pass  # If python-dotenv is not installed, continue using system environment variables
 
 
 # ============================================================================
@@ -34,16 +34,16 @@ except ImportError:
 
 @dataclass
 class MCPServerConfig:
-    """MCP Server 配置
+    """MCP Server Configuration
     
     Attributes:
-        name: Server 名称 (e.g., "tavily", "exa")
-        transport_type: 传输类型 ("stdio" 或 "http")
-        command: stdio 模式的命令 (e.g., "npx", "node")
-        args: stdio 模式的参数 (e.g., ["-y", "@tavily/mcp-server"])
-        env: 环境变量 (e.g., {"TAVILY_API_KEY": "xxx"})
-        server_url: http 模式的 server URL
-        description: Server 描述
+        name: Server name (e.g., "tavily", "exa")
+        transport_type: Transport type ("stdio" or "http")
+        command: Command for stdio mode (e.g., "npx", "node")
+        args: Arguments for stdio mode (e.g., ["-y", "@tavily/mcp-server"])
+        env: Environment variables (e.g., {"TAVILY_API_KEY": "xxx"})
+        server_url: Server URL for http mode
+        description: Server description
     """
     name: str
     transport_type: str = "stdio"
@@ -55,14 +55,14 @@ class MCPServerConfig:
 
 
 class MCPRegistry:
-    """MCP Server 注册中心
+    """MCP Server Registry
     
-    管理所有已注册的 MCP server 配置，支持动态添加和查询。
+    Manages all registered MCP server configurations, supports dynamic addition and query.
     
-    使用示例:
+    Usage example:
         registry = MCPRegistry()
         
-        # 注册 server
+        # Register server
         registry.register(MCPServerConfig(
             name="tavily",
             command="npx",
@@ -70,10 +70,10 @@ class MCPRegistry:
             env={"TAVILY_API_KEY": os.getenv("TAVILY_API_KEY")}
         ))
         
-        # 获取 server 配置
+        # Get server configuration
         config = registry.get("tavily")
         
-        # 创建 client
+        # Create client
         client = await registry.create_client("tavily")
     """
     
@@ -83,14 +83,14 @@ class MCPRegistry:
         self._active_clients: List["MCPClient"] = []
     
     def _load_builtin_servers(self):
-        """加载内置的 MCP servers (Tavily, Exa)"""
+        """Load built-in MCP servers (Tavily, Exa)"""
         
         # Tavily MCP Server
-        # Railway: 用远程 HTTP; 本地: 用 npx
+        # Railway: use remote HTTP; Local: use npx
         tavily_api_key = os.getenv("TAVILY_API_KEY")
         if tavily_api_key:
             if os.getenv("RAILWAY_ENVIRONMENT"):
-                # Railway 上用远程 HTTP MCP
+                # Use remote HTTP MCP on Railway
                 self.register(MCPServerConfig(
                     name="tavily",
                     transport_type="http",
@@ -98,7 +98,7 @@ class MCPRegistry:
                     description="Tavily search MCP server - powerful web search"
                 ))
             else:
-                # 本地用 npx
+                # Use npx locally
                 self.register(MCPServerConfig(
                     name="tavily",
                     transport_type="stdio",
@@ -111,11 +111,11 @@ class MCPRegistry:
             print("⚠️  Tavily MCP server skipped: TAVILY_API_KEY not found")
         
         # Exa MCP Server
-        # Railway: 用远程 HTTP; 本地: 用 npx
+        # Railway: use remote HTTP; Local: use npx
         exa_api_key = os.getenv("EXA_API_KEY")
         if exa_api_key:
             if os.getenv("RAILWAY_ENVIRONMENT"):
-                # Railway 上用远程 HTTP MCP
+                # Use remote HTTP MCP on Railway
                 self.register(MCPServerConfig(
                     name="exa",
                     transport_type="http",
@@ -123,7 +123,7 @@ class MCPRegistry:
                     description="Exa search MCP server - AI-powered web search"
                 ))
             else:
-                # 本地用 npx
+                # Use npx locally
                 self.register(MCPServerConfig(
                     name="exa",
                     transport_type="stdio",
@@ -136,11 +136,11 @@ class MCPRegistry:
             print("⚠️  Exa MCP server skipped: EXA_API_KEY not found")
     
     def register(self, config: MCPServerConfig, silent: bool = False) -> None:
-        """注册一个 MCP server
+        """Register an MCP server
         
         Args:
-            config: MCP server 配置
-            silent: 是否静默模式（不打印日志）
+            config: MCP server configuration
+            silent: Silent mode (do not print logs)
         """
         if config.name in self._servers and not silent:
             print(f"⚠️  Overwriting existing MCP server: {config.name}")
@@ -149,13 +149,13 @@ class MCPRegistry:
             print(f"✅ Registered MCP server: {config.name}")
     
     def unregister(self, name: str) -> bool:
-        """注销一个 MCP server
+        """Unregister an MCP server
         
         Args:
-            name: Server 名称
+            name: Server name
             
         Returns:
-            是否成功注销
+            Whether unregistration was successful
         """
         if name in self._servers:
             del self._servers[name]
@@ -164,32 +164,32 @@ class MCPRegistry:
         return False
     
     def get(self, name: str) -> Optional[MCPServerConfig]:
-        """获取 MCP server 配置
+        """Get MCP server configuration
         
         Args:
-            name: Server 名称
+            name: Server name
             
         Returns:
-            Server 配置，如果不存在则返回 None
+            Server configuration, or None if not found
         """
         return self._servers.get(name)
     
     def list_servers(self) -> List[str]:
-        """列出所有已注册的 server 名称"""
+        """List all registered server names"""
         return list(self._servers.keys())
     
     def list_configs(self) -> List[MCPServerConfig]:
-        """列出所有已注册的 server 配置"""
+        """List all registered server configurations"""
         return list(self._servers.values())
     
     async def create_client(self, name: str) -> Optional["MCPClient"]:
-        """根据注册的配置创建并连接 MCP client
+        """Create and connect an MCP client based on registered configuration
         
         Args:
-            name: Server 名称
+            name: Server name
             
         Returns:
-            已连接的 MCPClient 实例，如果 server 不存在则返回 None
+            Connected MCPClient instance, or None if server not found
         """
         config = self.get(name)
         if not config:
@@ -211,22 +211,22 @@ class MCPRegistry:
             return None
         
         await client.connect()
-        # 记录活动 client，供统一关闭
+        # Record active client for unified shutdown
         self._active_clients.append(client)
         return client
     
     async def collect_tools(self, config: Dict[str, List[str]]) -> tuple[List[Dict[str, Any]], List["MCPClient"]]:
-        """根据配置从多个 MCP servers 收集工具
+        """Collect tools from multiple MCP servers based on configuration
         
         Args:
-            config: 二维配置，例如：
+            config: Two-dimensional configuration, for example:
                 {
                     "tavily": ["tavily-search", "tavily-extract"],
                     "exa": ["web_search_exa"]
                 }
         
         Returns:
-            (工具列表, client列表) - 调用方需要手动关闭 clients
+            (tool list, client list) - caller needs to manually close clients
         """
         all_tools = []
         clients = []
@@ -247,26 +247,26 @@ class MCPRegistry:
         return all_tools, clients
 
     async def close_all_clients(self) -> None:
-        """关闭所有通过本 registry 创建并跟踪的活动 clients"""
+        """Close all active clients created and tracked by this registry"""
         if not self._active_clients:
             return
-        # 拷贝列表，避免迭代过程中修改
+        # Copy list to avoid modifying during iteration
         clients = list(self._active_clients)
         self._active_clients.clear()
         for client in clients:
             try:
                 await client.close()
             except Exception:
-                # 避免关闭问题影响主流程
+                # Avoid affecting main flow due to close issues
                 pass
 
 
-# 全局注册中心实例
+# Global registry instance
 _global_registry = MCPRegistry()
 
 
 def get_registry() -> MCPRegistry:
-    """获取全局 MCP registry 实例"""
+    """Get global MCP registry instance"""
     return _global_registry
 
 
@@ -275,42 +275,42 @@ def get_registry() -> MCPRegistry:
 # ============================================================================
 
 class MCPClient:
-    """MCP 客户端 - 连接到 MCP server 并执行工具调用
+    """MCP Client - Connect to MCP server and execute tool calls
     
-    使用示例:
-        # 方式1：使用 stdio 连接
+    Usage example:
+        # Method 1: Connect using stdio
         client = MCPClient.create_stdio_client(
             command="npx",
             args=["-y", "@modelcontextprotocol/server-brave-search"]
         )
         
-        # 方式2：使用 HTTP 连接
+        # Method 2: Connect using HTTP
         client = MCPClient.create_http_client(
             server_url="http://localhost:3000"
         )
         
-        # 初始化连接
+        # Initialize connection
         await client.connect()
         
-        # 获取工具列表
+        # Get tool list
         tools = await client.list_tools()
         
-        # 调用工具
+        # Call a tool
         result = await client.call_tool("search", {"query": "Python"})
         
-        # 关闭连接
+        # Close connection
         await client.close()
     """
     
     def __init__(self, transport_type: str = "stdio", **kwargs):
-        """初始化 MCP 客户端
+        """Initialize MCP client
         
         Args:
-            transport_type: 传输类型，可选 "stdio" 或 "http"
-            **kwargs: 传输相关的配置参数
-                - command: stdio 命令
-                - args: stdio 参数
-                - env: 环境变量字典
+            transport_type: Transport type, can be "stdio" or "http"
+            **kwargs: Transport-related configuration parameters
+                - command: stdio command
+                - args: stdio arguments
+                - env: environment variables dictionary
                 - server_url: HTTP server URL
         """
         self.transport_type = transport_type
@@ -321,7 +321,7 @@ class MCPClient:
         self._write_stream = None
         self._stdio_context = None
         
-        # 根据 transport_type 初始化对应的配置
+        # Initialize corresponding configuration based on transport_type
         if transport_type == "stdio":
             try:
                 from mcp import StdioServerParameters
@@ -343,42 +343,42 @@ class MCPClient:
         args: Optional[List[str]] = None,
         env: Optional[Dict[str, str]] = None
     ) -> MCPClient:
-        """创建 stdio 传输的 MCP 客户端
+        """Create an MCP client with stdio transport
         
         Args:
-            command: 要执行的命令 (e.g., "npx", "node", "python")
-            args: 命令参数 (e.g., ["-y", "@modelcontextprotocol/server-brave-search"])
-            env: 环境变量 (e.g., {"API_KEY": "xxx"})
+            command: Command to execute (e.g., "npx", "node", "python")
+            args: Command arguments (e.g., ["-y", "@modelcontextprotocol/server-brave-search"])
+            env: Environment variables (e.g., {"API_KEY": "xxx"})
         
         Returns:
-            MCPClient 实例
+            MCPClient instance
         """
         return cls(transport_type="stdio", command=command, args=args or [], env=env)
     
     @classmethod
     def create_http_client(cls, server_url: str) -> MCPClient:
-        """创建 HTTP 传输的 MCP 客户端
+        """Create an MCP client with HTTP transport
         
         Args:
-            server_url: MCP server 的 URL
+            server_url: MCP server URL
         
         Returns:
-            MCPClient 实例
+            MCPClient instance
         """
         return cls(transport_type="http", server_url=server_url)
     
     async def connect(self) -> None:
-        """连接到 MCP server"""
+        """Connect to MCP server"""
         if self._connected:
             return
         
         try:
             if self.transport_type == "stdio":
-                # 延迟在每次操作中建立连接，不在此处持久保持
+                # Delay connection establishment in each operation, don't persist here
                 pass
                 
             elif self.transport_type == "http":
-                # 延迟在每次操作中创建 http session
+                # Delay http session creation in each operation
                 self._http_session = None
             
             self._connected = True
@@ -392,10 +392,10 @@ class MCPClient:
             raise
     
     async def list_tools(self) -> List[Dict[str, Any]]:
-        """获取 MCP server 提供的工具列表
+        """Get the list of tools provided by MCP server
         
         Returns:
-            工具列表，MCP 标准格式：
+            Tool list in MCP standard format:
             [
                 {
                     "name": "search",
@@ -433,7 +433,7 @@ class MCPClient:
             elif self.transport_type == "http":
                 import aiohttp
                 async with aiohttp.ClientSession() as http_sess:
-                    # MCP 使用 JSON-RPC 2.0 协议
+                    # MCP uses JSON-RPC 2.0 protocol
                     payload = {
                         "jsonrpc": "2.0",
                         "method": "tools/list",
@@ -446,15 +446,15 @@ class MCPClient:
                     }
                     async with http_sess.post(self._server_url, json=payload, headers=headers) as resp:
                         if resp.status == 200:
-                            # 远程 MCP 返回 SSE 格式，需要解析
+                            # Remote MCP returns SSE format, needs parsing
                             text = await resp.text()
-                            # SSE 格式: "event: message\ndata: {...}\n\n"
+                            # SSE format: "event: message\ndata: {...}\n\n"
                             import json as json_module
                             for line in text.split('\n'):
                                 if line.startswith('data: '):
-                                    json_str = line[6:]  # 去掉 "data: " 前缀
+                                    json_str = line[6:]  # Remove "data: " prefix
                                     result = json_module.loads(json_str)
-                                    # JSON-RPC 响应格式：{"result": {"tools": [...]}}
+                                    # JSON-RPC response format: {"result": {"tools": [...]}}
                                     tools_data = result.get("result", {}).get("tools", [])
                                     return [{"name": t.get("name"), "description": t.get("description", ""), "inputSchema": t.get("inputSchema", {})} for t in tools_data]
                             raise RuntimeError("No valid data in SSE response")
@@ -466,13 +466,13 @@ class MCPClient:
             raise
     
     async def select_tools(self, tool_names: List[str]) -> List[Dict[str, Any]]:
-        """根据工具名称选择需要的工具
+        """Select needed tools based on tool names
         
         Args:
-            tool_names: 需要的工具名称列表，例如 ["tavily-search", "web_search_exa"]
+            tool_names: List of needed tool names, for example ["tavily-search", "web_search_exa"]
         
         Returns:
-            过滤后的工具列表
+            Filtered tool list
         """
         all_tools = await self.list_tools()
         selected = []
@@ -482,14 +482,14 @@ class MCPClient:
         return selected
     
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
-        """调用 MCP server 上的工具
+        """Call a tool on MCP server
         
         Args:
-            tool_name: 工具名称
-            arguments: 工具参数
+            tool_name: Tool name
+            arguments: Tool arguments
         
         Returns:
-            工具执行结果
+            Tool execution result
         """
         if not self._connected:
             await self.connect()
@@ -523,7 +523,7 @@ class MCPClient:
             elif self.transport_type == "http":
                 import aiohttp
                 async with aiohttp.ClientSession() as http_sess:
-                    # MCP 使用 JSON-RPC 2.0 协议调用工具
+                    # MCP uses JSON-RPC 2.0 protocol to call tools
                     payload = {
                         "jsonrpc": "2.0",
                         "method": "tools/call",
@@ -539,15 +539,15 @@ class MCPClient:
                     }
                     async with http_sess.post(self._server_url, json=payload, headers=headers) as resp:
                         if resp.status == 200:
-                            # 远程 MCP 返回 SSE 格式，需要解析
+                            # Remote MCP returns SSE format, needs parsing
                             text = await resp.text()
-                            # SSE 格式: "event: message\ndata: {...}\n\n"
+                            # SSE format: "event: message\ndata: {...}\n\n"
                             import json as json_module
                             for line in text.split('\n'):
                                 if line.startswith('data: '):
-                                    json_str = line[6:]  # 去掉 "data: " 前缀
+                                    json_str = line[6:]  # Remove "data: " prefix
                                     result = json_module.loads(json_str)
-                                    # JSON-RPC 响应：{"result": {"content": [...]}}
+                                    # JSON-RPC response: {"result": {"content": [...]}}
                                     return result.get("result", {})
                             raise RuntimeError("No valid data in SSE response")
                         else:
@@ -558,58 +558,58 @@ class MCPClient:
             raise
     
     async def close(self) -> None:
-        """关闭 MCP 连接"""
+        """Close MCP connection"""
         if not self._connected:
             return
         
         try:
-            # 采用按调用时打开/关闭的策略，这里无需实际关闭
+            # Adopt strategy of opening/closing on each call, no need to actually close here
             
             self._connected = False
             
         except Exception as e:
-            # 静默处理关闭错误，但不要中断主流程
+            # Silently handle close errors, but don't interrupt main flow
             try:
-                # 最后一搏：确保标记为断开，避免重复关闭
+                # Last resort: ensure marked as disconnected to avoid closing twice
                 self._connected = False
             except:
                 pass
     
     async def __aenter__(self):
-        """支持 async with 语法"""
+        """Support async with syntax"""
         await self.connect()
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """支持 async with 语法"""
+        """Support async with syntax"""
         await self.close()
 
 
-# 便捷函数：创建并连接 MCP client
+# Convenience function: create and connect MCP client
 async def create_mcp_client(
     transport_type: str = "stdio",
     **kwargs
 ) -> MCPClient:
-    """创建并连接 MCP client
+    """Create and connect MCP client
     
     Args:
-        transport_type: "stdio" 或 "http"
-        **kwargs: 传输相关的配置参数
-            - 对于 stdio: command, args
-            - 对于 http: server_url
+        transport_type: "stdio" or "http"
+        **kwargs: Transport-related configuration parameters
+            - For stdio: command, args
+            - For http: server_url
     
     Returns:
-        已连接的 MCPClient 实例
+        Connected MCPClient instance
     
-    使用示例:
-        # stdio 方式
+    Usage example:
+        # stdio method
         client = await create_mcp_client(
             transport_type="stdio",
             command="npx",
             args=["-y", "@modelcontextprotocol/server-brave-search"]
         )
         
-        # http 方式
+        # http method
         client = await create_mcp_client(
             transport_type="http",
             server_url="http://localhost:3000"
@@ -621,7 +621,7 @@ async def create_mcp_client(
 
 
 if __name__ == "__main__":
-    """测试 MCP client 及插件注册系统"""
+    """Test MCP client and plugin registration system"""
     import asyncio
     
     async def test_registry():
@@ -631,10 +631,10 @@ if __name__ == "__main__":
             print("No servers registered")
             return
         
-        # Deep Research 需要的工具
+        # Tools needed by Deep Research
         needed_tools = ["tavily-search", "web_search_exa", "tavily-extract"]
         
-        # 测试所有注册的 servers
+        # Test all registered servers
         for server_name in registry.list_servers():
             print(f"\n{'='*80}")
             print(f"Testing server: {server_name}")
@@ -643,7 +643,7 @@ if __name__ == "__main__":
             try:
                 client = await registry.create_client(server_name)
                 
-                # 测试 select_tools()
+                # Test select_tools()
                 print("\nselect_tools() with needed tools:")
                 print(f"Needed: {needed_tools}")
                 selected = await client.select_tools(needed_tools)
@@ -651,7 +651,7 @@ if __name__ == "__main__":
                 for tool in selected:
                     print(f"  - {tool['name']}")
                 
-                # 测试第一个选中的工具
+                # Test first selected tool
                 if selected:
                     tool_name = selected[0]['name']
                     test_args = {"query": "test", "max_results": 1} if "tavily" in tool_name else {"query": "test", "numResults": 1}

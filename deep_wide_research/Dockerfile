@@ -1,18 +1,18 @@
-# 使用 Python 官方镜像
+# Use official Python image
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# 安装 Python 依赖
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制应用代码
+# Copy application code
 COPY . .
 
-# 暴露端口（Railway 会动态分配）
+# Expose port (Railway will dynamically allocate)
 EXPOSE ${PORT:-8000}
 
-# 启动命令（使用 shell 形式以支持环境变量）
+# Start command (use shell form to support environment variables)
 CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
 

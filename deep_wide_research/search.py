@@ -9,7 +9,7 @@ import httpx
 import os
 
 class Configuration:
-    # minimal shim for defaults; to be removed if desired
+    # Minimal shim for defaults; to be removed if desired
     tavily_mcp_url: Optional[str] = None
     exa_mcp_url: Optional[str] = None
 
@@ -25,7 +25,7 @@ async def tavily_search(queries: List[str], max_results: int = 5, topic: str = "
     except ImportError:
         raise RuntimeError("tavily-python not installed. Run: pip install tavily-python")
     
-    # 获取 API key
+    # Get API key
     api_key = (api_keys or {}).get("TAVILY_API_KEY") or os.getenv("TAVILY_API_KEY")
     if not api_key:
         raise RuntimeError("TAVILY_API_KEY not set. Add it to .env file.")
@@ -33,7 +33,7 @@ async def tavily_search(queries: List[str], max_results: int = 5, topic: str = "
     client = TavilyClient(api_key=api_key)
     
     async def _one(q: str) -> dict:
-        # Tavily SDK 是同步的，所以在 asyncio 中运行
+        # Tavily SDK is synchronous, so run in asyncio
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None, 
@@ -45,7 +45,7 @@ async def tavily_search(queries: List[str], max_results: int = 5, topic: str = "
     return await asyncio.gather(*tasks)
 
 
-    # no normalization or shared helper by request — return MCP result as-is
+    # No normalization or shared helper by request — return MCP result as-is
 
 
 async def exa_search(queries: List[str], max_results: int = 5, cfg: Configuration = None, api_keys: Optional[dict] = None) -> List[dict]:
@@ -55,7 +55,7 @@ async def exa_search(queries: List[str], max_results: int = 5, cfg: Configuratio
     except ImportError:
         raise RuntimeError("exa_py not installed. Run: pip install exa_py")
     
-    # 获取 API key
+    # Get API key
     api_key = (api_keys or {}).get("EXA_API_KEY") or os.getenv("EXA_API_KEY")
     if not api_key:
         raise RuntimeError("EXA_API_KEY not set. Add it to .env file.")
@@ -63,13 +63,13 @@ async def exa_search(queries: List[str], max_results: int = 5, cfg: Configuratio
     client = Exa(api_key=api_key)
     
     async def _one(q: str) -> dict:
-        # Exa SDK 是同步的，所以在 asyncio 中运行
+        # Exa SDK is synchronous, so run in asyncio
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
             lambda: client.search(query=q, num_results=max_results, use_autoprompt=True)
         )
-        # 转换为字典格式
+        # Convert to dictionary format
         return {
             "query": q,
             "results": [{"title": r.title, "url": r.url, "score": r.score, "text": getattr(r, 'text', '')} for r in result.results]
@@ -79,6 +79,6 @@ async def exa_search(queries: List[str], max_results: int = 5, cfg: Configuratio
     return await asyncio.gather(*tasks)
 
 
-    # removed summarization utilities per simplified design
+    # Removed summarization utilities per simplified design
 
 

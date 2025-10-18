@@ -1,16 +1,16 @@
 """FastAPI server for Deep Research Engine.
 
-提供 HTTP API 接口来调用深度研究引擎。
+Provides HTTP API endpoints to invoke the deep research engine.
 """
 
 import sys
 from pathlib import Path
 
-# 添加项目根目录到 Python 路径，以便正确导入模块
+# Add project root to Python path for proper module imports
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# 同时添加当前目录到路径（用于 Railway 部署）
+# Also add current directory to path (for Railway deployment)
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
@@ -22,7 +22,7 @@ from typing import List, Optional, Dict, Any
 import asyncio
 import json
 
-# 尝试两种导入方式：开发环境和部署环境
+# Try two import methods: development and deployment environments
 try:
     from deep_wide_research.engine import run_deep_research, run_deep_research_stream, Configuration
 except ImportError:
@@ -30,14 +30,14 @@ except ImportError:
 
 app = FastAPI(title="PuppyResearch API", version="1.0.0")
 
-# 配置 CORS，允许前端访问
+# Configure CORS to allow frontend access
 import os
 
-# 检测是否为生产环境
+# Detect if running in a production environment
 is_production = bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RENDER") or os.getenv("VERCEL"))
 
 if is_production:
-    # 生产环境：必须使用环境变量配置
+    # Production: must configure via environment variables
     allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
     if allowed_origins_env:
         allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
@@ -49,12 +49,12 @@ if is_production:
             "Example: ALLOWED_ORIGINS=https://your-frontend.vercel.app,https://www.your-domain.com"
         )
 else:
-    # 本地开发：永远允许所有来源（方便开发）
+    # Local development: always allow all origins (for convenience)
     allowed_origins = ["*"]
     allow_all_origins = True
     print("💡 Tip: Running in development mode with CORS set to allow all origins (*)")
 
-# 打印 CORS 配置（用于调试）
+# Print CORS configuration (for debugging)
 print("="*80)
 print("🔧 CORS Configuration:")
 print(f"   Environment: {'🌐 Production' if is_production else '💻 Development (Local)'}")
@@ -66,7 +66,7 @@ print("="*80)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=not allow_all_origins,  # 使用 * 时不能启用 credentials
+    allow_credentials=not allow_all_origins,  # Credentials cannot be enabled when using '*'
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
@@ -75,32 +75,32 @@ app.add_middleware(
 
 
 class Message(BaseModel):
-    """消息模型 - 标准的 OpenAI 格式"""
+    """Message model - Standard OpenAI format"""
     role: str  # "user", "assistant", or "system"
     content: str
 
 
 class DeepWideParams(BaseModel):
-    """深度和广度参数模型"""
-    deep: float = 0.5  # 深度参数 (0-1)，控制研究的深度
-    wide: float = 0.5  # 广度参数 (0-1)，控制研究的广度
+    """Depth and breadth parameter model"""
+    deep: float = 0.5  # Depth parameter (0-1), controls research depth
+    wide: float = 0.5  # Breadth parameter (0-1), controls research breadth
 
 
 class ResearchMessage(BaseModel):
-    """研究消息模型 - 包含查询和参数"""
-    query: str  # 用户的查询文本
-    deepwide: DeepWideParams = DeepWideParams()  # 深度广度参数对象
-    mcp: Dict[str, List[str]] = {}  # MCP配置：{服务名: [工具列表]}
+    """Research message model - includes query and parameters"""
+    query: str  # User's query text
+    deepwide: DeepWideParams = DeepWideParams()  # Depth/breadth parameter object
+    mcp: Dict[str, List[str]] = {}  # MCP config: {service_name: [tool list]}
 
 
 class ResearchRequest(BaseModel):
-    """研究请求模型"""
-    message: ResearchMessage  # 现在是一个对象而不是字符串
+    """Research request model"""
+    message: ResearchMessage  # Now an object instead of a string
     history: Optional[List[Message]] = None
 
 
 class ResearchResponse(BaseModel):
-    """研究响应模型"""
+    """Research response model"""
     response: str
     notes: List[str] = []
     success: bool = True
@@ -108,7 +108,7 @@ class ResearchResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    """API 根路径"""
+    """API root path"""
     return {
         "name": "PuppyResearch API",
         "version": "1.0.0",
@@ -118,13 +118,13 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """健康检查端点"""
+    """Health check endpoint"""
     return {"status": "healthy"}
 
 
 @app.get("/api/mcp/status")
 async def mcp_status():
-    """检查 MCP 环境变量状态（调试用）"""
+    """Check MCP environment variables status (for debugging)"""
     import os
     return {
         "tavily_api_key_set": bool(os.getenv("TAVILY_API_KEY")),
@@ -134,20 +134,20 @@ async def mcp_status():
 
 
 async def research_stream_generator(request: ResearchRequest):
-    """生成研究流式响应"""
+    """Generate research streaming response"""
     try:
-        # 构建消息历史
+        # Build message history
         history_messages = request.history or []
         user_messages = [msg.content for msg in history_messages if msg.role == "user"]
         user_messages.append(request.message.query)
         
-        # 创建配置
+        # Create configuration
         cfg = Configuration()
         
         print(f"\n🔍 Received research request: {request.message.query}")
         print(f"📊 Deep: {request.message.deepwide.deep}, Wide: {request.message.deepwide.wide}")
         
-        # 执行研究并获取流式更新
+        # Execute research and stream updates
         async for update in run_deep_research_stream(
             user_messages=user_messages,
             cfg=cfg,
@@ -165,7 +165,7 @@ async def research_stream_generator(request: ResearchRequest):
 
 @app.post("/api/research")
 async def research(request: ResearchRequest):
-    """执行深度研究 - 流式响应"""
+    """Execute deep research - streaming response"""
     return StreamingResponse(
         research_stream_generator(request),
         media_type="text/event-stream",
@@ -178,18 +178,18 @@ async def research(request: ResearchRequest):
 
 
 class MCPTestRequest(BaseModel):
-    """MCP 测试请求模型"""
-    services: List[str]  # 要测试的服务名称列表，如 ["tavily", "exa"]
+    """MCP test request model"""
+    services: List[str]  # List of service names to test, e.g., ["tavily", "exa"]
 
 
 class MCPToolInfo(BaseModel):
-    """MCP 工具信息"""
+    """MCP tool information"""
     name: str
     description: str = ""
 
 
 class MCPServiceStatus(BaseModel):
-    """MCP 服务状态"""
+    """MCP service status"""
     name: str
     available: bool
     tools: List[MCPToolInfo] = []
@@ -197,24 +197,24 @@ class MCPServiceStatus(BaseModel):
 
 
 class MCPTestResponse(BaseModel):
-    """MCP 测试响应模型"""
+    """MCP test response model"""
     services: List[MCPServiceStatus]
 
 
 @app.post("/api/mcp/test", response_model=MCPTestResponse)
 async def test_mcp_services(request: MCPTestRequest):
-    """测试 MCP 服务连接状态
+    """Test MCP service connectivity
     
-    检查 MCP 服务是否可用：
-    - 本地环境：检查 API key 是否设置
-    - 云端环境（HTTP MCP）：实际测试 HTTP 连接
+    Check whether MCP services are available:
+    - Local environment: verify API key is set
+    - Cloud environment (HTTP MCP): actually test the HTTP connection
     """
     import os
     import httpx
     
     is_production = bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RENDER") or os.getenv("VERCEL"))
     
-    # MCP 服务的配置映射
+    # Configuration mapping for MCP services
     mcp_config = {
         "tavily": {
             "api_key_env": "TAVILY_API_KEY",
@@ -237,7 +237,7 @@ async def test_mcp_services(request: MCPTestRequest):
     for service_name in request.services:
         service_name_lower = service_name.lower()
         
-        # 检查服务是否在配置中
+        # Check whether the service exists in the configuration
         if service_name_lower not in mcp_config:
             results.append(MCPServiceStatus(
                 name=service_name,
@@ -250,7 +250,7 @@ async def test_mcp_services(request: MCPTestRequest):
         api_key = os.getenv(config["api_key_env"])
         
         if not api_key:
-            # API key 未设置
+            # API key not set
             results.append(MCPServiceStatus(
                 name=service_name,
                 available=False,
@@ -258,22 +258,22 @@ async def test_mcp_services(request: MCPTestRequest):
             ))
             continue
         
-        # 如果是生产环境，尝试实际测试 HTTP 连接
+        # If in production, try actually testing the HTTP connection
         if is_production:
             try:
                 http_url = config["http_url_template"].format(api_key=api_key)
                 
-                # 尝试连接 MCP HTTP 服务（使用 SSE 连接测试）
+                # Try connecting to the MCP HTTP service (using SSE connection test)
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    # 发送 SSE 连接请求
+                    # Send SSE connection request
                     response = await client.get(
                         http_url,
                         headers={"Accept": "text/event-stream"}
                     )
                     
                     if response.status_code == 200:
-                        # 连接成功，使用默认工具列表
-                        # TODO: 可以解析 SSE 响应获取实际工具列表
+                        # Connection successful, use the default tool list
+                        # TODO: Parse SSE response to get actual tool list
                         tool_infos = [
                             MCPToolInfo(name=tool["name"], description=tool["description"])
                             for tool in config["default_tools"]
@@ -310,7 +310,7 @@ async def test_mcp_services(request: MCPTestRequest):
                     error=f"Connection failed: {str(e)}"
                 ))
         else:
-            # 本地环境：只检查 API key，返回默认工具列表
+            # Local environment: only check API key, return default tool list
             tool_infos = [
                 MCPToolInfo(name=tool["name"], description=tool["description"])
                 for tool in config["default_tools"]

@@ -194,9 +194,9 @@ Reason: Comprehensive coverage with facts and example
 
 
 def generate_dynamic_research_config(deep_param: float, wide_param: float, max_researcher_iterations: int):
-    """生成基于deep/wide参数的动态研究配置 - 简单实现"""
+    """Generate dynamic research configuration based on deep/wide parameters"""
     
-    # Deep参数配置 (0.25/0.5/0.75/1.0) → 决定“搜索轮次上限( rounds )”与证据要求
+    # Deep parameter configuration (0.25/0.5/0.75/1.0) → determines "max search rounds" and evidence requirements
     deep_settings = {
         0.25: {
             "level": "basic",
@@ -224,7 +224,7 @@ def generate_dynamic_research_config(deep_param: float, wide_param: float, max_r
         }
     }
     
-    # Wide参数配置 (0.25/0.5/0.75/1.0)  → 决定“每轮可调用工具次数上限”
+    # Wide parameter configuration (0.25/0.5/0.75/1.0) → determines "max tool calls per round"
     wide_settings = {
         0.25: {
             "aspects": "1-2 core aspects",
@@ -255,11 +255,11 @@ def generate_dynamic_research_config(deep_param: float, wide_param: float, max_r
     deep = deep_settings[deep_param]
     wide = wide_settings[wide_param]
     
-    # 直接给出明确的上限，覆盖原有统一上限
+    # Provide explicit limits directly, overriding original unified limits
     max_search_rounds = deep["max_search_rounds"]
     max_calls_per_round = wide["max_calls_per_round"]
     
-    # 构造直接插入到各段落的简洁文本
+    # Construct concise text for direct insertion into various sections
     instructions_block = (
         "Definitions and Background:\n"
         "- Deep: Depth-first on each key point; form hypotheses, gather primary sources, cross-validate, quantify, and test counter-hypotheses.\n"
@@ -289,14 +289,14 @@ def generate_dynamic_research_config(deep_param: float, wide_param: float, max_r
 
 
 def create_unified_research_prompt(date: str, mcp_prompt: str, max_researcher_iterations: int, deep_param: float = 0.5, wide_param: float = 0.5):
-    """创建动态的 unified_research_prompt：将 deep/wide 的文字直接插入现有段落中"""
+    """Create dynamic unified_research_prompt: insert deep/wide text directly into existing sections"""
 
-    # 生成 deep / wide 的设置与插入文本
+    # Generate deep/wide configuration and insertion text
     deep_cfg, wide_cfg, instructions_block, hard_limits_block = generate_dynamic_research_config(
         deep_param, wide_param, max_researcher_iterations
     )
 
-    # 构建最终 prompt（一次性填充所有占位符，避免二次 format 带来的花括号转义问题）
+    # Build final prompt (single pass to fill all placeholders, avoid double-format escape issues)
     prompt = unified_research_prompt.format(
         date=date,
         mcp_prompt=mcp_prompt,

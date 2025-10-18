@@ -1,8 +1,8 @@
 """Native Deep Research engine orchestrating the full flow without LangChain.
 
-This engine串联两个核心策略:
-1. Research Phase: 使用 unified_research_prompt 进行搜索和信息收集
-2. Generate Phase: 使用 final_report_generation_prompt 生成最终报告
+This engine orchestrates two core phases:
+1. Research Phase: use unified_research_prompt for search and information gathering
+2. Generate Phase: use final_report_generation_prompt to produce the final report
 """
 
 from __future__ import annotations
@@ -13,18 +13,18 @@ from typing import Dict, List, Optional
 import os
 import sys
 
-# 支持直接运行和模块导入 - 尝试绝对导入和相对导入
+# Support direct execution and module imports - try absolute and relative imports
 try:
-    # 尝试作为包的一部分导入（开发环境）
+    # Try importing as part of the package (development environment)
     from .research_strategy import run_research_llm_driven
     from .generate_strategy import generate_report
 except ImportError:
-    # 尝试绝对导入（直接运行或部署环境）
+    # Try absolute imports (direct run or deployment environment)
     try:
         from deep_wide_research.research_strategy import run_research_llm_driven
         from deep_wide_research.generate_strategy import generate_report
     except ImportError:
-        # 作为独立模块导入（Railway 部署环境）
+        # Import as standalone modules (Railway deployment environment)
         from research_strategy import run_research_llm_driven
         from generate_strategy import generate_report
 
@@ -68,10 +68,10 @@ class Configuration:
 
 
 async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Configuration] = None, api_keys: Optional[dict] = None, mcp_config: Optional[Dict[str, List[str]]] = None, deep_param: float = 0.5, wide_param: float = 0.5):
-    """流式版本的深度研究流程：Research → Generate
+    """Streaming version of the deep research flow: Research → Generate
     
     Yields:
-        状态更新字典，包含 action 和 message 字段
+        Status update dictionaries containing 'action' and 'message' fields
     """
     cfg = cfg or Configuration()
     state = {
@@ -81,41 +81,41 @@ async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Confi
         "final_report": "",
     }
 
-    # 提取研究主题
+    # Extract research topic
     last_user = next((m for m in reversed(state["messages"]) if m["role"] == "user"), {"content": ""})
     research_topic = last_user.get("content", "")
 
     # ============================================================
-    # Phase 1: Research - 使用 unified_research_prompt
+    # Phase 1: Research - use unified_research_prompt
     # ============================================================
     yield {"action": "thinking", "message": "thinking..."}
     
-    # 让用户看到thinking状态
+    # Let the user briefly see the thinking state
     import asyncio
     await asyncio.sleep(1.5)
     
-    # 创建一个队列来接收状态更新
+    # Create a queue to receive status updates
     from asyncio import Queue
     status_queue = Queue()
     
-    # 创建状态回调函数
+    # Create the status callback
     async def status_callback(message: str):
         await status_queue.put(message)
     
-    # 启动研究任务
+    # Start the research task
     research_task = asyncio.create_task(_run_researcher(research_topic, cfg, api_keys, mcp_config, deep_param, wide_param, status_callback))
     
-    # 从队列中读取并yield状态更新
+    # Read and yield status updates from the queue
     while not research_task.done():
         try:
-            # 尝试获取状态更新（短超时）
+            # Try to get a status update (short timeout)
             message = await asyncio.wait_for(status_queue.get(), timeout=0.1)
             yield {"action": "using_tools", "message": message}
         except asyncio.TimeoutError:
-            # 没有消息，继续等待
+            # No message; continue waiting
             continue
     
-    # 研究完成后，处理队列中的剩余消息
+    # After research completes, process remaining messages in the queue
     while not status_queue.empty():
         try:
             message = status_queue.get_nowait()
@@ -123,7 +123,7 @@ async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Confi
         except asyncio.QueueEmpty:
             break
     
-    # 获取研究结果
+    # Retrieve research results
     research = await research_task
     raw_notes = research.get("raw_notes", "") if research else ""
     state["notes"] = [raw_notes] if raw_notes else []
@@ -139,13 +139,13 @@ async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Confi
         })
 
     # ============================================================
-    # Phase 2: Generate - 使用 final_report_generation_prompt
+    # Phase 2: Generate - use final_report_generation_prompt
     # ============================================================
     yield {"action": "generating", "message": "research finished, generating..."}
     
     await final_report_generation(state, cfg, api_keys)
     
-    # 统一关闭所有 MCP clients
+    # Close all MCP clients
     try:
         from deep_wide_research.mcp_client import get_registry
     except Exception:
@@ -162,20 +162,20 @@ async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Confi
         except Exception:
             pass
     
-    # 发送最终结果
+    # Send the final result
     yield {"action": "complete", "message": state["final_report"], "final_report": state["final_report"]}
 
 
 async def run_deep_research(user_messages: List[str], cfg: Optional[Configuration] = None, api_keys: Optional[dict] = None, mcp_config: Optional[Dict[str, List[str]]] = None, deep_param: float = 0.5, wide_param: float = 0.5) -> dict:
-    """完整的深度研究流程：Research → Generate
+    """Full deep research flow: Research → Generate
     
     Args:
-        user_messages: 用户消息列表
-        cfg: 配置对象
-        api_keys: API 密钥
+        user_messages: list of user messages
+        cfg: configuration object
+        api_keys: API keys
         
     Returns:
-        包含研究结果和最终报告的 state 字典
+        State dict containing research results and the final report
     """
     cfg = cfg or Configuration()
     state = {
@@ -185,20 +185,20 @@ async def run_deep_research(user_messages: List[str], cfg: Optional[Configuratio
         "final_report": "",
     }
 
-    # 提取研究主题
+    # Extract research topic
     last_user = next((m for m in reversed(state["messages"]) if m["role"] == "user"), {"content": ""})
     research_topic = last_user.get("content", "")
 
     # ============================================================
-    # Phase 1: Research - 使用 unified_research_prompt
+    # Phase 1: Research - use unified_research_prompt
     # ============================================================
     research = await _run_researcher(research_topic, cfg, api_keys, mcp_config, deep_param, wide_param)
     raw_notes = research.get("raw_notes", "") if research else ""
     state["notes"] = [raw_notes] if raw_notes else []
-    # 将 raw_notes JSON 也注入 messages，供生成阶段作为上下文
+    # Also inject raw_notes JSON into messages for the generation phase as context
     if raw_notes:
         try:
-            # 验证是否为 JSON；如果不是，也照样放入
+            # Validate whether it is JSON; if not, still include it
             json.loads(raw_notes)
         except Exception:
             pass
@@ -207,11 +207,11 @@ async def run_deep_research(user_messages: List[str], cfg: Optional[Configuratio
             "content": f"<RAW_NOTES_JSON>\n{raw_notes}\n</RAW_NOTES_JSON>"
         })
     # ============================================================
-    # Phase 2: Generate - 使用 final_report_generation_prompt
+    # Phase 2: Generate - use final_report_generation_prompt
     # ============================================================
     await final_report_generation(state, cfg, api_keys)
     
-    # 统一关闭所有 MCP clients，避免关闭发生在不同 task 导致的 cancel scope 异常
+    # Close all MCP clients to avoid cancel-scope errors caused by different tasks closing clients
     try:
         from deep_wide_research.mcp_client import get_registry
     except Exception:
@@ -232,13 +232,13 @@ async def run_deep_research(user_messages: List[str], cfg: Optional[Configuratio
 
 
 if __name__ == "__main__":
-    """在 VSCode 中直接点击 Run 按钮即可测试完整的 Deep Research 流程"""
+    """Click Run in VSCode to test the full Deep Research flow"""
     import asyncio
     
     class TestConfig(Configuration):
         def __init__(self):
             super().__init__()
-            # 自定义测试配置
+            # Custom test configuration
             self.research_model = "openai/o4-mini"
             self.research_model_max_tokens = 16000
             self.final_report_model = "openai/o4-mini"
@@ -250,10 +250,10 @@ if __name__ == "__main__":
         print("🚀 Testing Deep Research Engine")
         print("="*80)
         
-        # 测试用例
-        test_question = "DataBricks, Snowflake 他们分别提供什么服务，以及区别是什么?"
+        # Test case
+        test_question = "DataBricks, Snowflake what services they provide and what are the differences?"
         
-        # 运行完整流程
+        # Run the full flow
         result = await run_deep_research(
             user_messages=[test_question],
             cfg=TestConfig()

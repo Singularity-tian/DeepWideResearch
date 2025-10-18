@@ -8,18 +8,18 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-# 支持直接运行和模块导入 - 尝试绝对导入和相对导入
+# Support direct execution and module imports - try absolute and relative imports
 try:
-    # 尝试作为包的一部分导入（开发环境）
+    # Try importing as part of the package (development environment)
     from .newprompt import final_report_generation_prompt
     from .providers import chat_complete
 except ImportError:
-    # 尝试绝对导入（直接运行或部署环境）
+    # Try absolute imports (direct run or deployment environment)
     try:
         from deep_wide_research.newprompt import final_report_generation_prompt
         from deep_wide_research.providers import chat_complete
     except ImportError:
-        # 作为独立模块导入（Railway 部署环境）
+        # Import as standalone modules (Railway deployment environment)
         from newprompt import final_report_generation_prompt
         from providers import chat_complete
 
@@ -39,7 +39,7 @@ async def generate_report(state: Dict, cfg, api_keys: Optional[dict] = None) -> 
     """
     findings = "\n".join(state.get("notes") or [])
     system_message = {"role": "system", "content": final_report_generation_prompt.format(date=_today_str())}
-    # 用户消息：包含原始用户问题与 raw_notes JSON（已在 engine 注入到 messages）
+    # User message: includes the original user question and raw_notes JSON (injected into messages by engine)
     user_payload = {
         "role": "user",
         "content": (
@@ -50,7 +50,7 @@ async def generate_report(state: Dict, cfg, api_keys: Optional[dict] = None) -> 
         )
     }
 
-    # 可选：打印调试
+    # Optional: print debug logs
     print(system_message["content"])
     print(user_payload["content"])
 
