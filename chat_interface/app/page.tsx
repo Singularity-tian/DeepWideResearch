@@ -309,7 +309,7 @@ export default function Home() {
         throw new Error('No response body reader available')
       }
 
-      let statusHistory: string[] = [] // 📜 累积所有状态步骤
+      const statusHistory: string[] = [] // 📜 累积所有状态步骤
       let finalReport = ''
 
       // Read streaming response
