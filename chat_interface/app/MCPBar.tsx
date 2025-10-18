@@ -25,12 +25,12 @@ export interface MCPBarProps {
 }
 
 export default function MCPBar({ value, onChange }: MCPBarProps) {
-  // 过滤出有启用工具的服务
+  // Filter services with enabled tools
   const activeServices = value.services.filter(service => 
     service.enabled && service.tools.some(tool => tool.enabled)
   )
   
-  // 获取被移除的服务（没有启用工具的服务）
+  // Get removed services (services without enabled tools)
   const removedServices = value.services.filter(service => 
     !service.enabled || !service.tools.some(tool => tool.enabled)
   )
@@ -44,7 +44,7 @@ export default function MCPBar({ value, onChange }: MCPBarProps) {
 
   return (
     <>
-      {/* MCP Services Bar - 每个按钮都有独立的面板 */}
+      {/* MCP Services Bar - each button has its own panel */}
       {activeServices.map((service) => (
         <MCPButton
           key={service.name}
@@ -53,7 +53,7 @@ export default function MCPBar({ value, onChange }: MCPBarProps) {
         />
       ))}
 
-      {/* Add MCP Button - 用于恢复被移除的服务和添加自定义 MCP */}
+      {/* Add MCP Button - for restoring removed services and adding custom MCP */}
       <AddMCPButton
         removedServices={removedServices}
         onRestoreService={(serviceName) => {
@@ -73,7 +73,7 @@ export default function MCPBar({ value, onChange }: MCPBarProps) {
   )
 }
 
-// 独立的添加 MCP 按钮组件
+// Standalone Add MCP Button component
 interface AddMCPButtonProps {
   removedServices: McpService[]
   onRestoreService: (serviceName: string) => void
@@ -82,7 +82,7 @@ interface AddMCPButtonProps {
 function AddMCPButton({ removedServices, onRestoreService }: AddMCPButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
 
-  // 点击外部关闭面板
+  // Close panel on outside click
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isOpen) {

@@ -12,7 +12,7 @@ export interface FloatingBubbleProps {
   pulseAnimation?: boolean
 }
 
-// 自定义对话框图标组件
+// Custom chat bubble icon component
 const ChatBubbleIcon = ({ size }: { size: number }) => {
   return (
     <svg 

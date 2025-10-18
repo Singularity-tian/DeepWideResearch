@@ -43,15 +43,15 @@ export interface ChatInterfaceProps {
   headerRight?: React.ReactNode
 }
 
-// 添加一个全局标识符来避免重复添加样式
+// Add a global identifier to avoid adding styles repeatedly
 const STYLE_ID = 'puppychat-animations'
 
-// 在文件顶部添加相同的 StyleManager
+// Add the same StyleManager at the top of the file
 const StyleManager = {
   injected: new Set<string>(),
   
   inject(id: string, css: string) {
-    if (typeof document === 'undefined') return // SSR 兼容
+    if (typeof document === 'undefined') return // SSR compatible
     if (this.injected.has(id)) return
     
     const style = document.createElement('style')
@@ -125,36 +125,36 @@ export default function ChatInterface({
     messagesEndRef.current?.scrollIntoView({ behavior })
   }
 
-  // 消息变化时滚动到底部
+  // Scroll to bottom when messages change
   useEffect(() => {
-    // 初始加载或切换会话时，直接跳到底部（无动画）
+    // On initial load or session switch, jump to bottom directly (no animation)
     if (isInitialLoad) {
       scrollToBottom('auto')
       setIsInitialLoad(false)
     } else {
-      // 新消息时使用平滑滚动
+      // Use smooth scroll for new messages
       scrollToBottom('smooth')
     }
   }, [messages])
 
-  // 🔧 同步 initialMessages 的变化（当父组件更新时）
+  // 🔧 Sync changes to initialMessages (when parent component updates)
   useEffect(() => {
     console.log('🔄 ChatInterface useEffect triggered, initialMessages:', initialMessages?.length)
     if (initialMessages !== undefined) {
-      // 标记为初始加载状态，触发直接跳转（无动画）
+      // Mark as initial load state, trigger direct jump (no animation)
       setIsInitialLoad(true)
       
       if (initialMessages.length === 0) {
         console.log('➡️ Setting default welcome message')
-        // 如果传入空数组，表示新会话，重置为默认欢迎消息
+        // If empty array passed, indicates new session, reset to default welcome message
         setMessages(defaultInitialMessages)
       } else {
         console.log('➡️ Setting messages from initialMessages:', initialMessages.length)
-        // 直接更新为新的 messages
+        // Directly update to new messages
         setMessages(initialMessages)
         
-        // 🔧 清除 typing/streaming 状态，避免显示两条消息
-        // 只有当最后一条消息是 bot 消息时，才清除 typing indicator
+        // 🔧 Clear typing/streaming state, avoid showing duplicate messages
+        // Only clear typing indicator when the last message is a bot message
         const lastMessage = initialMessages[initialMessages.length - 1]
         if (lastMessage && lastMessage.sender === 'bot') {
           setIsTyping(false)
@@ -165,7 +165,7 @@ export default function ChatInterface({
     }
   }, [initialMessages])
 
-  // 注入 spin 动画
+  // Inject spin animation
   useEffect(() => {
     StyleManager.inject('puppychat-spin-animation', `
       @keyframes spin {
@@ -179,7 +179,7 @@ export default function ChatInterface({
     `)
   }, [])
 
-  // 注入 textarea placeholder 样式，确保使用与正文一致的字体
+  // Inject textarea placeholder styles, ensure consistent font with body text
   useEffect(() => {
     StyleManager.inject('puppychat-textarea-placeholder', `
       .puppychat-textarea::placeholder {
@@ -188,7 +188,7 @@ export default function ChatInterface({
     `)
   }, [])
 
-  // 注入滚动条样式：默认隐藏，悬停或滚动时显示
+  // Inject scrollbar styles: hidden by default, show on hover or scroll
   useEffect(() => {
     StyleManager.inject('puppychat-scrollbar-styles', `
       /* Firefox */
@@ -222,13 +222,13 @@ export default function ChatInterface({
         transition: background-color 0.3s ease;
       }
 
-      /* 悬停容器时显示滚动条 */
+      /* Show scrollbar when hovering container */
       .puppychat-messages:hover::-webkit-scrollbar-thumb,
       .puppychat-textarea:hover::-webkit-scrollbar-thumb {
         background-color: rgba(100, 100, 100, 0.5);
       }
 
-      /* 悬停滚动条本身时更明显 */
+      /* More visible when hovering scrollbar itself */
       .puppychat-messages::-webkit-scrollbar-thumb:hover,
       .puppychat-textarea::-webkit-scrollbar-thumb:hover {
         background-color: rgba(120, 120, 120, 0.9);
@@ -247,7 +247,7 @@ export default function ChatInterface({
     `)
   }, [])
 
-  // 根据内容自动调整 textarea 高度（hug 内容）
+  // Auto-adjust textarea height based on content (hug content)
   const autoResizeTextarea = () => {
     const el = textareaRef.current
     if (!el) return
@@ -259,7 +259,7 @@ export default function ChatInterface({
     autoResizeTextarea()
   }, [inputValue])
 
-  // 初始挂载时也进行一次自适应，避免首屏高度过小
+  // Also auto-adjust on initial mount to avoid small initial height
   useEffect(() => {
     autoResizeTextarea()
   }, [])
@@ -328,7 +328,7 @@ export default function ChatInterface({
         // Create streaming callback
         const onStreamUpdate = (content: string, streaming: boolean = true) => {
           if (streaming) {
-            setIsTyping(false)  // 关闭typing状态
+            setIsTyping(false)  // Close typing state
             setStreamingStatus(content)
             setIsStreaming(true)
           } else {
@@ -403,7 +403,7 @@ export default function ChatInterface({
         // Create streaming callback
         const onStreamUpdate = (content: string, streaming: boolean = true) => {
           if (streaming) {
-            setIsTyping(false)  // 关闭typing状态
+            setIsTyping(false)  // Close typing state
             setStreamingStatus(content)
             setIsStreaming(true)
           } else {

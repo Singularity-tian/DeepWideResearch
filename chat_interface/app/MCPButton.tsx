@@ -31,7 +31,7 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
   const [availableTools, setAvailableTools] = useState<string[]>([])
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown')
 
-  // 点击外部关闭面板
+  // Close panel on outside click
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isOpen) {
@@ -57,12 +57,12 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
   const handleToolToggle = (toolIndex: number) => {
     const newService = { ...service }
     
-    // 切换工具状态
+    // Toggle tool status
     newService.tools = newService.tools.map((t, i) => 
       i === toolIndex ? { ...t, enabled: !t.enabled } : t
     )
     
-    // 如果有任何工具启用，则服务也应该启用
+    // If any tool is enabled, service should also be enabled
     newService.enabled = newService.tools.some(t => t.enabled)
     
     onServiceChange(newService)
@@ -97,7 +97,7 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
         setTestMessage(`✅ Connected! Found ${serviceStatus.tools.length} tool(s)`)
         setAvailableTools(serviceStatus.tools.map((t: ToolResponse) => t.name))
         
-        // 更新工具列表为实际可用的工具（如果后端返回了不同的工具）
+        // Update tool list to actual available tools (if backend returned different tools)
         const actualTools = serviceStatus.tools.map((t: ToolResponse) => ({
           name: t.name,
           enabled: true,
@@ -121,7 +121,7 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
     }
   }
 
-  // 组件挂载时自动测试一次
+  // Auto-test once when component mounts
   React.useEffect(() => {
     handleTestConnection()
   }, [])
@@ -330,11 +330,10 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
             }}>
               <div style={{
                 padding: '8px 10px',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
+                background: '#dc2626',
                 borderRadius: '8px',
                 fontSize: '11px',
-                color: '#ef4444',
+                color: '#fff',
                 lineHeight: '1.5'
               }}>
                 <div style={{ 
@@ -350,7 +349,7 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
                   </svg>
                   Connection Failed
                 </div>
-                <div style={{ color: '#fca5a5', fontSize: '10px' }}>
+                <div style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '10px' }}>
                   {testMessage}
                 </div>
               </div>
@@ -366,11 +365,10 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
             }}>
               <div style={{
                 padding: '6px 10px',
-                background: 'rgba(74, 222, 128, 0.08)',
-                border: '1px solid rgba(74, 222, 128, 0.2)',
+                background: '#16a34a',
                 borderRadius: '6px',
                 fontSize: '10px',
-                color: '#86efac',
+                color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px'
@@ -389,7 +387,7 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
       <button
         onClick={(e) => {
           e.stopPropagation()
-          // 切换工具面板显示
+          // Toggle tool panel visibility
           setIsOpen(!isOpen)
         }}
         title={`${service.name} MCP Server`}
@@ -447,8 +445,29 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
             objectFit: 'contain'
           }}
         />
-        {/* Tool Count Badge */}
-        {service.enabled && service.tools.filter(tool => tool.enabled).length > 0 && (
+        {/* Status Badge */}
+        {connectionStatus === 'disconnected' ? (
+          // Show red exclamation mark when connection fails
+          <div style={{
+            position: 'absolute',
+            top: '-2px',
+            right: '-2px',
+            width: '16px',
+            height: '16px',
+            borderRadius: '50%',
+            background: '#ef4444',
+            border: '2px solid rgba(20, 20, 20, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '11px',
+            fontWeight: '700',
+            color: '#0a0a0a'
+          }}>
+            !
+          </div>
+        ) : service.enabled && service.tools.filter(tool => tool.enabled).length > 0 && connectionStatus === 'connected' ? (
+          // Show green number when connected and has enabled tools
           <div style={{
             position: 'absolute',
             top: '-2px',
@@ -467,7 +486,7 @@ export default function MCPButton({ service, onServiceChange }: MCPButtonProps) 
           }}>
             {service.tools.filter(tool => tool.enabled).length}
           </div>
-        )}
+        ) : null}
       </button>
     </div>
   )

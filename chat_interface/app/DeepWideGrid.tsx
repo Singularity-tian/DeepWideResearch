@@ -31,13 +31,13 @@ export default function DeepWideGrid({
   const gridCols = 4
   const gridRows = 4
   
-  // 提取重复计算
+  // Extract repeated calculations
   const gridInnerWidth = gridCols * cellSize + (gridCols - 1) * innerBorder
   const gridInnerHeight = gridRows * cellSize + (gridRows - 1) * innerBorder
   const gridWidth = gridInnerWidth + 2 * frameOffset
   const gridHeight = gridInnerHeight + 2 * frameOffset
 
-  // 限制值范围并计算选中的格子
+  // Clamp values and calculate selected cell
   const clampedDeep = Math.max(0, Math.min(1, value.deep))
   const clampedWide = Math.max(0, Math.min(1, value.wide))
   const selectedRowIndex = Math.max(0, Math.min(3, Math.round(clampedDeep / step) - 1))
@@ -122,7 +122,7 @@ export default function DeepWideGrid({
     pointerEvents: 'none'
   }
 
-  // 优化：使用函数式方式生成格子
+  // Optimization: use functional approach to generate cells
   const renderCells = () => 
     Array.from({ length: gridRows }, (_, row) =>
       Array.from({ length: gridCols }, (_, col) => {
@@ -150,12 +150,12 @@ export default function DeepWideGrid({
       })
     ).flat()
 
-  // 显示值和工具提示
+  // Display values and tooltips
   const displayWide = clampedWide
   const displayDeep = clampedDeep
   const tooltipVisible = hoverCell?.row === selectedRowIndex && hoverCell?.col === selectedColIndex
   
-  // 简化tooltip位置计算 - 基于选中格子位置
+  // Simplified tooltip position calculation - based on selected cell position
   const selectedCellLeft = frameOffset + selectedColIndex * (cellSize + innerBorder)
   const selectedCellTop = frameOffset + selectedRowIndex * (cellSize + innerBorder)
   
@@ -176,7 +176,7 @@ export default function DeepWideGrid({
     backdropFilter: 'blur(8px)'
   }
 
-  // 提取重复的样式对象
+  // Extract repeated style objects
   const valueDisplayStyle: React.CSSProperties = {
     marginBottom: '12px',
     padding: '7px 10px',

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 
-// 类型定义
+// Type definitions
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
@@ -17,23 +17,23 @@ export interface Session {
 }
 
 interface SessionContextType {
-  // 轻量级：所有会话元数据
+  // Lightweight: session metadata for all sessions
   sessions: Session[]
   
-  // 重量级：聊天记录（懒加载缓存）
+  // Heavy: chat history (lazy-loaded cache)
   chatHistory: Record<string, ChatMessage[]>
   
-  // 当前选中的会话
+  // Currently selected session
   currentSessionId: string | null
   
-  // 临时会话（未保存到后端）
+  // Temporary session (not yet saved to backend)
   tempSessionId: string | null
   
-  // 加载状态
+  // Loading state
   isLoading: boolean
   isLoadingChat: boolean
   
-  // 会话操作
+  // Session operations
   fetchSessions: () => Promise<void>
   createSession: (title?: string) => Promise<string>
   createTempSession: () => string
@@ -41,37 +41,37 @@ interface SessionContextType {
   switchSession: (id: string) => Promise<void>
   deleteSession: (id: string) => Promise<void>
   
-  // 消息操作
+  // Message operations
   addMessage: (sessionId: string, message: ChatMessage) => void
   updateMessages: (sessionId: string, messages: ChatMessage[]) => void
   getCurrentMessages: () => ChatMessage[]
   
-  // 保存到后端
+  // Save to backend
   saveSessionToBackend: (sessionId: string, messages: ChatMessage[]) => Promise<void>
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined)
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  // 轻量级：会话列表（只包含元数据）
+  // Lightweight: session list (metadata only)
   const [sessions, setSessions] = useState<Session[]>([])
   
-  // 重量级：聊天记录（懒加载，只存储访问过的）
+  // Heavy: chat history (lazy-loaded, only store accessed sessions)
   const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({})
   
-  // 当前选中的会话ID
+  // Currently selected session ID
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   
-  // 临时会话ID（未保存到后端）
+  // Temporary session ID (not saved to backend)
   const [tempSessionId, setTempSessionId] = useState<string | null>(null)
   
-  // 加载状态
+  // Loading state
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingChat, setIsLoadingChat] = useState(false)
 
-  // ==================== API 调用函数 ====================
+  // ==================== API Call Functions ====================
   
-  // 获取所有会话列表（轻量级，只有元数据）
+  // Fetch all sessions list (lightweight, metadata only)
   const fetchSessions = useCallback(async () => {
     setIsLoading(true)
     try {
@@ -87,7 +87,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // 获取单个会话的详细消息（懒加载）
+  // Fetch detailed messages for a single session (lazy-loaded)
   const fetchSessionMessages = useCallback(async (id: string) => {
     setIsLoadingChat(true)
     try {
@@ -103,7 +103,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // 创建新会话（立即保存到后端）
+  // Create new session (save to backend immediately)
   const createSession = useCallback(async (title = 'New Chat') => {
     try {
       const res = await fetch('/api/history', {
@@ -114,10 +114,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error('Failed to create session')
       const data = await res.json()
       
-      // 刷新会话列表
+      // Refresh session list
       await fetchSessions()
       
-      // 初始化空的聊天记录
+      // Initialize empty chat history
       setChatHistory(prev => ({
         ...prev,
         [data.id]: []
@@ -130,25 +130,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchSessions])
 
-  // 创建临时会话（不保存到后端，直到用户发送第一条消息）
+  // Create temporary session (don't save to backend until user sends the first message)
   const createTempSession = useCallback(() => {
     const tempId = `temp-${Date.now()}`
     console.log('📝 Creating temp session:', tempId)
     
-    // 初始化空的聊天记录
+    // Initialize empty chat history
     setChatHistory(prev => ({
       ...prev,
       [tempId]: []
     }))
     
-    // 设置为临时会话
+    // Set as temporary session
     setTempSessionId(tempId)
     setCurrentSessionId(tempId)
     
     return tempId
   }, [])
 
-  // 将临时会话提升为正式会话（保存到后端）
+  // Promote temporary session to permanent session (save to backend)
   const promoteTempSession = useCallback(async (title = 'New Chat') => {
     if (!tempSessionId) {
       throw new Error('No temp session to promote')
@@ -157,10 +157,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     console.log('⬆️ Promoting temp session to permanent:', tempSessionId)
     
     try {
-      // 获取临时会话的消息
+      // Get messages from temporary session
       const messages = chatHistory[tempSessionId] || []
       
-      // 创建正式会话
+      // Create permanent session
       const res = await fetch('/api/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,10 +173,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error('Failed to promote session')
       const data = await res.json()
       
-      // 刷新会话列表
+      // Refresh session list
       await fetchSessions()
       
-      // 将临时会话的消息迁移到新的正式会话
+      // Migrate messages from temporary session to new permanent session
       setChatHistory(prev => {
         const newHistory = { ...prev }
         newHistory[data.id] = messages
@@ -184,7 +184,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return newHistory
       })
       
-      // 清除临时会话标记
+      // Clear temporary session flag
       setTempSessionId(null)
       setCurrentSessionId(data.id)
       
@@ -196,12 +196,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [tempSessionId, chatHistory, fetchSessions])
 
-  // 切换会话（懒加载策略）
+  // Switch session (lazy-loading strategy)
   const switchSession = useCallback(async (id: string) => {
     console.log('🔄 Switching to session:', id)
     setCurrentSessionId(id)
     
-    // 如果切换到非临时会话，清除临时会话标记和数据
+    // If switching to non-temporary session, clear temporary session flag and data
     if (!id.startsWith('temp-')) {
       if (tempSessionId) {
         console.log('🗑️ Clearing temp session:', tempSessionId)
@@ -213,7 +213,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setTempSessionId(null)
       }
       
-      // 检查是否已经加载过这个会话的消息
+      // Check if messages for this session have already been loaded
       if (!chatHistory[id]) {
         console.log('📥 Loading messages for session:', id)
         const messages = await fetchSessionMessages(id)
@@ -228,25 +228,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [chatHistory, fetchSessionMessages, tempSessionId])
 
-  // 删除会话（乐观更新，立即从 UI 移除）
+  // Delete session (optimistic update, remove from UI immediately)
   const deleteSession = useCallback(async (id: string) => {
-    // 保存旧状态，以便失败时恢复
+    // Save old state for recovery on failure
     const oldSessions = sessions
     const oldCurrentSessionId = currentSessionId
     
     try {
-      // 🚀 乐观更新：立即从 UI 中移除（不触发 isLoading）
+      // 🚀 Optimistic update: remove from UI immediately (don't trigger isLoading)
       const remainingSessions = sessions.filter(s => s.id !== id)
       setSessions(remainingSessions)
       
-      // 从 chatHistory 中移除
+      // Remove from chatHistory
       setChatHistory(prev => {
         const newHistory = { ...prev }
         delete newHistory[id]
         return newHistory
       })
       
-      // 如果删除的是当前会话，立即切换到第一个
+      // If deleting current session, immediately switch to the first one
       if (currentSessionId === id) {
         if (remainingSessions.length > 0) {
           await switchSession(remainingSessions[0].id)
@@ -255,7 +255,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
-      // 后台删除（不阻塞 UI）
+      // Delete in background (non-blocking UI)
       const res = await fetch(`/api/history/${id}`, { method: 'DELETE' })
       if (!res.ok && res.status !== 204) {
         throw new Error('Delete failed')
@@ -264,7 +264,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       console.log('✅ Session deleted:', id)
     } catch (e) {
       console.error('❌ Failed to delete session, rolling back:', e)
-      // 删除失败，恢复旧状态
+      // Delete failed, restore old state
       setSessions(oldSessions)
       if (oldCurrentSessionId !== currentSessionId) {
         setCurrentSessionId(oldCurrentSessionId)
@@ -273,9 +273,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentSessionId, sessions, switchSession])
 
-  // ==================== 消息操作 ====================
+  // ==================== Message Operations ====================
   
-  // 添加单条消息到 context（实时同步）
+  // Add single message to context (real-time sync)
   const addMessage = useCallback((sessionId: string, message: ChatMessage) => {
     setChatHistory(prev => ({
       ...prev,
@@ -283,7 +283,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [])
 
-  // 批量更新消息（用于后端返回后同步）
+  // Batch update messages (sync after backend returns)
   const updateMessages = useCallback((sessionId: string, messages: ChatMessage[]) => {
     setChatHistory(prev => ({
       ...prev,
@@ -291,13 +291,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [])
 
-  // 获取当前会话的消息
+  // Get messages from current session
   const getCurrentMessages = useCallback(() => {
     if (!currentSessionId) return []
     return chatHistory[currentSessionId] || []
   }, [currentSessionId, chatHistory])
 
-  // 保存到后端
+  // Save to backend
   const saveSessionToBackend = useCallback(async (sessionId: string, messages: ChatMessage[]) => {
     try {
       const firstUser = messages.find(m => m.role === 'user')
@@ -312,7 +312,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         })
       })
       
-      // 刷新会话列表（更新 updatedAt 时间戳）
+      // Refresh session list (update updatedAt timestamp)
       await fetchSessions()
     } catch (e) {
       console.warn('Failed to save session to backend:', e)
@@ -320,30 +320,30 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchSessions])
 
-  // ==================== 初始化 ====================
+  // ==================== Initialization ====================
   
   useEffect(() => {
     let isMounted = true
     
     const init = async () => {
       try {
-        // 加载会话列表
+        // Load session list
         await fetchSessions()
         
-        // 检查组件是否还在挂载
+        // Check if component is still mounted
         if (!isMounted) return
         
-        // 使用 setSessions 的回调来获取最新的 sessions
+        // Use setSessions callback to get the latest sessions
         setSessions(currentSessions => {
           if (currentSessions.length === 0) {
-            // 如果没有任何会话，创建一个临时会话
+            // If no sessions exist, create a temporary session
             console.log('🆕 No sessions found, creating temp session')
             const tempId = `temp-${Date.now()}`
             setChatHistory(prev => ({ ...prev, [tempId]: [] }))
             setTempSessionId(tempId)
             setCurrentSessionId(tempId)
           } else if (!currentSessionId) {
-            // 如果有会话但没有选中，自动选中第一个
+            // If sessions exist but none selected, auto-select the first one
             console.log('📂 Found existing sessions, switching to first')
             switchSession(currentSessions[0].id)
           }
@@ -354,13 +354,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
-    // 初始化
+    // Initialize
     init()
     
     return () => {
       isMounted = false
     }
-  }, []) // 空依赖数组，只在组件挂载时执行一次
+  }, []) // Empty dependency array, execute only once on component mount
 
   const value: SessionContextType = {
     sessions,
@@ -388,7 +388,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-// 自定义 Hook 方便使用
+// Custom Hook for convenient usage
 export function useSession() {
   const context = useContext(SessionContext)
   if (context === undefined) {

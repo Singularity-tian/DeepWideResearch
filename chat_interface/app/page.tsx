@@ -11,13 +11,13 @@ import { useSession } from './context/SessionContext'
 import type { Message as UIMessage } from '../components/component/ChatInterface'
  
 
-// 动态导入本地 ChatMain 组件，禁用 SSR 以避免 document 未定义错误
+// Dynamically import local ChatMain component, disable SSR to avoid document undefined error
 const ChatMain = dynamic(
   () => import('../components/ChatMain'),
   { ssr: false }
 )
 
-// 标准消息格式 - 遵循 OpenAI 格式
+// Standard message format - follows OpenAI format
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
@@ -25,7 +25,7 @@ interface ChatMessage {
 }
 
 export default function Home() {
-  // 🎯 使用 SessionContext（包含会话列表、消息历史等）
+  // 🎯 Use SessionContext (contains session list, message history, etc.)
   const {
     sessions,
     chatHistory,
@@ -44,7 +44,7 @@ export default function Home() {
     saveSessionToBackend
   } = useSession()
 
-  // UI 状态
+  // UI state
   const [researchParams, setResearchParams] = useState<{ deep: number; wide: number }>({ deep: 0.5, wide: 0.5 })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(240)
@@ -52,20 +52,20 @@ export default function Home() {
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [showCreateSuccess, setShowCreateSuccess] = useState(false)
   
-  // 🔑 用于 ChatMain 组件的稳定 key，避免在临时会话提升时重新挂载组件
+  // 🔑 Stable key for ChatMain component, avoid re-mounting when promoting temporary session
   const [chatComponentKey, setChatComponentKey] = useState<string>('default')
   
-  // 当 currentSessionId 改变时更新 chatComponentKey（但排除临时会话提升的情况）
+  // Update chatComponentKey when currentSessionId changes (excluding temporary session promotion)
   const previousSessionIdRef = React.useRef<string | null>(null)
   React.useEffect(() => {
     const prev = previousSessionIdRef.current
     const current = currentSessionId
     
-    // 如果是从临时会话切换到正式会话（提升），保持 key 不变
+    // If switching from temporary session to permanent session (promotion), keep key unchanged
     const isTempPromotion = prev?.startsWith('temp-') && current && !current.startsWith('temp-')
     
     if (!isTempPromotion && current !== prev && current) {
-      // 正常的会话切换，更新 key
+      // Normal session switch, update key
       console.log('🔑 Updating chatComponentKey from', prev, 'to', current)
       setChatComponentKey(current)
     }
@@ -73,12 +73,12 @@ export default function Home() {
     previousSessionIdRef.current = current
   }, [currentSessionId])
   
-  // 追踪 currentSessionId 变化
+  // Track currentSessionId changes
   React.useEffect(() => {
     console.log('📌 currentSessionId changed to:', currentSessionId)
   }, [currentSessionId])
 
-  // 添加点击外部关闭设置面板的逻辑
+  // Add logic to close settings panel on outside click
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isSettingsOpen) {
@@ -120,12 +120,12 @@ export default function Home() {
   })
 
 
-  // 添加调试信息 - 显示当前参数状态
+  // Add debug info - show current parameter state
   React.useEffect(() => {
     console.log('📊 Current research params:', researchParams)
   }, [researchParams])
 
-  // 添加调试信息 - 显示当前 MCP 配置状态
+  // Add debug info - show current MCP configuration state
   React.useEffect(() => {
     const enabledServices = mcpConfig.services
       .filter(service => service.enabled)
@@ -155,7 +155,7 @@ export default function Home() {
     })
   }, [mcpConfig])
 
-  // 侧边栏下拉（overlay）外部点击关闭
+  // Sidebar dropdown (overlay) close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!isSidebarMenuOpen) return
@@ -174,9 +174,9 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isSidebarMenuOpen])
 
-  // 将 Context 中的消息映射为 UI 消息
+  // Map messages from Context to UI messages
   const uiMessages: UIMessage[] = React.useMemo(() => {
-    // 直接从 chatHistory 获取当前会话的消息，避免 getCurrentMessages 的异步问题
+    // Get current session messages directly from chatHistory, avoid async issues with getCurrentMessages
     const currentMessages = currentSessionId ? (chatHistory[currentSessionId] || []) : []
     console.log('🔄 uiMessages recalculating, currentSessionId:', currentSessionId, 'messages:', currentMessages.length)
     const result = currentMessages.map((m, idx) => ({
@@ -187,21 +187,21 @@ export default function Home() {
     }))
     console.log('✅ uiMessages result:', result.length, 'messages')
     return result
-  }, [chatHistory, currentSessionId]) // 依赖 chatHistory 和 currentSessionId
+  }, [chatHistory, currentSessionId]) // Depends on chatHistory and currentSessionId
 
-  // 处理新建会话
+  // Handle creating new chat
   const handleCreateNewChat = async () => {
     if (isCreatingSession) return
     setIsCreatingSession(true)
     try {
-      // 如果已经有临时会话，切换到它；否则创建新的临时会话
+      // If already has temporary session, switch to it; otherwise create new temporary session
       if (tempSessionId) {
         await switchSession(tempSessionId)
       } else {
         createTempSession()
       }
       setIsSidebarMenuOpen(false)
-      // 显示成功反馈
+      // Show success feedback
       setShowCreateSuccess(true)
       setTimeout(() => setShowCreateSuccess(false), 2000)
     } finally {
@@ -209,42 +209,42 @@ export default function Home() {
     }
   }
 
-  // 处理会话切换（使用 Context 的缓存机制）
+  // Handle session switch (use Context's cache mechanism)
   const handleSessionClick = async (id: string) => {
     try {
-      await switchSession(id) // ✅ 使用 Context 的 switchSession，自动处理缓存
+      await switchSession(id) // ✅ Use Context's switchSession, automatically handle cache
       setIsSidebarMenuOpen(false)
     } catch (e) {
       console.warn('Failed to switch session:', e)
     }
   }
 
-  // 处理会话删除
+  // Handle session deletion
   const handleDeleteSession = async (id: string) => {
     try {
-      await deleteSession(id) // ✅ 使用 Context 的 deleteSession
+      await deleteSession(id) // ✅ Use Context's deleteSession
     } catch (e) {
       console.warn('Failed to delete session:', e)
     }
   }
 
   const handleSendMessage = async (message: string, onStreamUpdate?: (content: string, isStreaming?: boolean) => void) => {
-    // 🔒 关键：在函数开始时锁定当前的sessionId，防止切换会话导致的状态混乱
+    // 🔒 Key: Lock the current sessionId at the start of the function, prevent state confusion from session switching
     let targetSessionId = currentSessionId
     
-    // 📝 在提升临时会话之前，先保存临时会话的消息
+    // 📝 Before promoting temporary session, save temporary session messages first
     let messagesBeforePromotion: ChatMessage[] = []
     if (tempSessionId && currentSessionId === tempSessionId) {
       messagesBeforePromotion = chatHistory[tempSessionId] || []
     }
     
-    // 如果当前是临时会话，先将其提升为正式会话
+    // If current session is temporary, promote it to permanent first
     if (tempSessionId && currentSessionId === tempSessionId) {
       console.log('⬆️ Promoting temp session before sending message')
-      const firstUserMessage = message.slice(0, 60) // 使用第一条消息的前60个字符作为标题
+      const firstUserMessage = message.slice(0, 60) // Use first 60 characters of first message as title
       targetSessionId = await promoteTempSession(firstUserMessage)
     } else if (!targetSessionId) {
-      // 如果没有会话，创建一个新的正式会话
+      // If no session exists, create a new permanent session
       const firstUserMessage = message.slice(0, 60)
       targetSessionId = await createSession(firstUserMessage)
       await switchSession(targetSessionId)
@@ -252,17 +252,17 @@ export default function Home() {
     
     const userMessage: ChatMessage = { role: 'user', content: message, timestamp: Date.now() }
     
-    // 📝 如果刚提升了临时会话，使用提升前保存的消息；否则从 chatHistory 获取
+    // 📝 If just promoted temporary session, use saved messages before promotion; otherwise get from chatHistory
     const currentMessages = messagesBeforePromotion.length > 0 
       ? messagesBeforePromotion 
       : (chatHistory[targetSessionId] || [])
     const localHistoryBefore = [...currentMessages, userMessage]
     
     try {
-      // ✅ 立即添加用户消息到 Context（UI 立即更新）
+      // ✅ Immediately add user message to Context (UI updates immediately)
       addMessage(targetSessionId, userMessage)
 
-      // 构造请求数据
+      // Construct request data
       const requestData = {
         message: {
           query: message,
@@ -271,26 +271,26 @@ export default function Home() {
             wide: researchParams.wide
           },
             mcp: mcpConfig.services.reduce((acc, service) => {
-              // 只包含启用的服务和其工具
+              // Only include enabled services and their tools
               if (service.enabled) {
                 const enabledTools = service.tools
                   .filter(tool => tool.enabled)
                   .map(tool => tool.name)
                 
                 if (enabledTools.length > 0) {
-                  // 转换为后端期望的格式：{服务名小写: [启用的工具列表]}
+                  // Convert to backend expected format: {service_name_lowercase: [enabled_tools_list]}
                   acc[service.name.toLowerCase()] = enabledTools
                 }
               }
               return acc
             }, {} as Record<string, string[]>)
         },
-        history: localHistoryBefore  // 发送包含最新用户消息的对话历史
+        history: localHistoryBefore  // Send conversation history with latest user message
       }
 
       console.log('🚀 Sending streaming request to backend:', message)
 
-      // 调用streaming API - 使用环境变量或默认本地地址
+      // Call streaming API - use environment variable or default local address
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const response = await fetch(`${apiUrl}/api/research`, {
         method: 'POST',
@@ -312,7 +312,7 @@ export default function Home() {
       let currentStatus = ''
       let finalReport = ''
 
-      // 读取streaming响应
+      // Read streaming response
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -327,10 +327,10 @@ export default function Home() {
               
               if (data.action === 'complete' && data.final_report) {
                 finalReport = data.final_report
-                onStreamUpdate?.(finalReport, false) // 标记streaming结束
+                onStreamUpdate?.(finalReport, false) // Mark streaming end
               } else if (data.message) {
                 currentStatus = data.message
-                onStreamUpdate?.(currentStatus, true) // 标记正在streaming
+                onStreamUpdate?.(currentStatus, true) // Mark streaming in progress
               }
             } catch (e) {
               console.warn('Failed to parse SSE data:', line)
@@ -339,15 +339,15 @@ export default function Home() {
         }
       }
 
-      // ✅ 添加助手回复到 Context
+      // ✅ Add assistant reply to Context
       const assistantMessage: ChatMessage = { role: 'assistant', content: finalReport || currentStatus, timestamp: Date.now() }
       addMessage(targetSessionId, assistantMessage)
       
-      // ✅ 保存到后端
+      // ✅ Save to backend
       const completeHistory = [...localHistoryBefore, assistantMessage]
       await saveSessionToBackend(targetSessionId, completeHistory)
       
-      // 🔑 如果是从临时会话提升过来的，现在可以安全地更新 chatComponentKey 了
+      // 🔑 If promoted from temporary session, now safe to update chatComponentKey
       if (messagesBeforePromotion.length > 0 && targetSessionId !== chatComponentKey) {
         console.log('🔑 Updating chatComponentKey after successful message, from', chatComponentKey, 'to', targetSessionId)
         setChatComponentKey(targetSessionId)
@@ -360,17 +360,17 @@ export default function Home() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const errorMessage = `❌ Error: ${error instanceof Error ? error.message : `Failed to connect to research API. Please make sure the backend server is running at ${apiUrl}`}`
       
-      // ✅ 添加错误消息到 Context
+      // ✅ Add error message to Context
       const errorAssistantMessage: ChatMessage = { role: 'assistant', content: errorMessage, timestamp: Date.now() }
       addMessage(targetSessionId, errorAssistantMessage)
       
-      // ✅ 保存到后端
+      // ✅ Save to backend
       const completeHistoryWithError = [...localHistoryBefore, errorAssistantMessage]
       await saveSessionToBackend(targetSessionId, completeHistoryWithError).catch(e => 
         console.warn('Failed to save error message:', e)
       )
       
-      // 🔑 如果是从临时会话提升过来的，现在可以安全地更新 chatComponentKey 了
+      // 🔑 If promoted from temporary session, now safe to update chatComponentKey
       if (messagesBeforePromotion.length > 0 && targetSessionId !== chatComponentKey) {
         console.log('🔑 Updating chatComponentKey after error message, from', chatComponentKey, 'to', targetSessionId)
         setChatComponentKey(targetSessionId)
@@ -401,9 +401,9 @@ export default function Home() {
         gap: '16px',
         overflow: 'hidden'
       }}>
-        {/* 左侧不再占据 flex 空间，使用 header overlay 呈现会话 */}
+        {/* Left side no longer occupies flex space, sessions rendered as header overlay */}
 
-        {/* 右侧聊天区域（限制最大宽度为 800px） */}
+        {/* Right side chat area (limit max width to 800px) */}
         <div style={{ 
           flex: 1, 
           display: 'flex', 
@@ -421,7 +421,7 @@ export default function Home() {
             overflow: 'hidden',
             minHeight: 0
           }}>
-            {/* 顶部控制栏 */}
+            {/* Top control bar */}
             <div style={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -458,7 +458,7 @@ export default function Home() {
                 />
               </div>
 
-              {/* 中心标题 */}
+              {/* Center title */}
               <div style={{ 
                 position: 'absolute',
                 left: '50%',
@@ -488,11 +488,11 @@ export default function Home() {
                 </span>
               </div>
 
-              {/* 右侧占位，保持布局平衡 */}
+              {/* Right side spacing, maintain layout balance */}
               <div style={{ width: '80px' }}></div>
             </div>
 
-            {/* ChatMain 包装器 - 填充剩余空间 */}
+            {/* ChatMain wrapper - fill remaining space */}
             <div style={{
               flex: 1,
               minHeight: 0,
