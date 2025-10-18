@@ -37,16 +37,17 @@ export default function SessionsSidebar({
   const paddingBottom = showNewButton ? '4px' : '8px'
 
   return (
-    <div className="flex-col font-normal px-[8px] h-full items-start flex relative font-plus-jakarta-sans transition-all duration-300 ease-in-out rounded-[12px]" style={{ 
+    <div className="flex flex-col font-normal px-[8px] items-start relative font-plus-jakarta-sans transition-all duration-300 ease-in-out rounded-[12px]" style={{ 
       paddingTop, 
       paddingBottom,
-      background: 'rgba(10, 10, 10, 0.6)',
-      border: '1px solid #2a2a2a',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.05)'
+      background: 'transparent',
+      overflow: 'hidden',
+      flex: 1,
+      minHeight: 0
     }}>
       {/* Header 区域 */}
       {showHeader && (
-        <div className='w-full text-[#5D6065] text-[11px] font-normal pl-[12px] pr-[8px]'>
+        <div className='w-full text-[#5D6065] text-[11px] font-normal pl-[12px] pr-[8px] flex-shrink-0'>
           <div className='mb-[16px] flex items-center gap-2'>
             <span>Chats</span>
             <div className='h-[1px] flex-grow bg-[#404040]'></div>
@@ -55,7 +56,7 @@ export default function SessionsSidebar({
       )}
 
       {/* 会话列表 */}
-      <ul className='flex flex-col gap-[4px] items-start relative w-full overflow-y-auto puppychat-messages' style={{ maxHeight: showHeader && showNewButton ? 'calc(100% - 120px)' : showHeader || showNewButton ? 'calc(100% - 60px)' : '100%' }}>
+      <ul className='flex flex-col gap-[4px] items-start relative w-full overflow-y-auto puppychat-messages' style={{ flex: 1, minHeight: 0 }}>
         {list.length === 0 ? (
           <div className='w-full flex items-center justify-center py-8'>
             <span className='text-[#888] text-[11px] font-normal tracking-wider'>Empty History</span>
@@ -107,7 +108,7 @@ export default function SessionsSidebar({
 
       {/* New 按钮，样式对齐 AddNewWorkspaceButton */}
       {showNewButton && (
-        <div className='flex h-[32px] items-center mt-[16px] relative self-stretch w-full'>
+        <div className='flex h-[32px] items-center mt-[16px] relative self-stretch w-full flex-shrink-0'>
           <button
             className='w-full h-[32px] pl-[12px] pr-[4px] flex items-center gap-[10px] font-plus-jakarta-sans text-[#6d7177] rounded-md transition-colors group hover:bg-[#313131] cursor-pointer'
             onClick={async () => {

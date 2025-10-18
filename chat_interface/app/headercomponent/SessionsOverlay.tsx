@@ -38,7 +38,7 @@ export default function SessionsOverlay({
         left: '0',
         width: `${sidebarWidth}px`,
         maxHeight: '60vh',
-        overflow: 'visible',
+        overflow: 'hidden',
         background: 'linear-gradient(135deg, rgba(25,25,25,0.98) 0%, rgba(15,15,15,0.98) 100%)',
         border: '1px solid #2a2a2a',
         borderRadius: '14px',
@@ -50,7 +50,9 @@ export default function SessionsOverlay({
         transition: 'all 300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
         pointerEvents: isOpen ? 'auto' : 'none',
         backdropFilter: 'blur(12px)',
-        zIndex: 50
+        zIndex: 50,
+        display: 'flex',
+        flexDirection: 'column'
       }}
       aria-hidden={!isOpen}
       onClick={(e) => e.stopPropagation()}
