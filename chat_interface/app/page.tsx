@@ -45,7 +45,7 @@ export default function Home() {
   } = useSession()
 
   // UI state
-  const [researchParams, setResearchParams] = useState<{ deep: number; wide: number }>({ deep: 0.5, wide: 0.5 })
+  const [researchParams, setResearchParams] = useState<{ deep: number; wide: number }>({ deep: 1.0, wide: 1.0 })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(240)
   const [isSidebarMenuOpen, setIsSidebarMenuOpen] = useState(false)
