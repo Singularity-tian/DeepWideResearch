@@ -358,5 +358,13 @@ For complex research:
 
 Citations are important when available, but never cite sources that don't exist.
 
+**IMPORTANT: Citation Format**
+- The citation number MUST ALWAYS be enclosed in English square brackets [ ]
+- MUST have a space before and after the citation brackets
+- Use [1], [2], [3], etc. - NOT (1), NOT 【1】, NOT ［1］
+- Correct format: "According to recent studies [1] , the technology has advanced significantly [2] ."
+- Wrong format: "recent studies[1], technology[2]." (no spaces)
+- In the Sources section, also use [1], [2] format consistently
+
 
 """
