@@ -301,7 +301,7 @@ async def run_research_llm_driven(
             tools_being_used = [tc["tool"] for tc in tool_calls]
             unique_tools = list(set(tools_being_used))  # Deduplicate
             tools_text = ", ".join(unique_tools[:3])  # Show max 3 tools
-            await status_callback(f"using {tools_text}...")
+            await status_callback(f"using {tools_text}")
         
         # Execute all tool calls
         tool_results = await execute_tool_calls(tool_calls, mcp_clients)

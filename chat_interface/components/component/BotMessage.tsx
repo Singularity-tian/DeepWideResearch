@@ -190,7 +190,8 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
             {streamingHistory && streamingHistory.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '12px', width: '100%' }}>
                 {streamingHistory.map((step, index) => {
-                  const isCurrentStep = index === streamingHistory.length - 1
+                  // 如果不是streaming状态，所有步骤都是已完成的
+                  const isCurrentStep = isStreaming && index === streamingHistory.length - 1
                   const isCompleted = !isCurrentStep
                   const isLastItem = index === streamingHistory.length - 1
                   

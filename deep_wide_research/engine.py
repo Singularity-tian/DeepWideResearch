@@ -88,7 +88,7 @@ async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Confi
     # ============================================================
     # Phase 1: Research - use unified_research_prompt
     # ============================================================
-    yield {"action": "thinking", "message": "thinking..."}
+    yield {"action": "thinking", "message": "thinking"}
     
     # Let the user briefly see the thinking state
     import asyncio
@@ -141,7 +141,7 @@ async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Confi
     # ============================================================
     # Phase 2: Generate - use final_report_generation_prompt with streaming
     # ============================================================
-    yield {"action": "generating", "message": "research finished, generating..."}
+    yield {"action": "generating", "message": "research finished, generating"}
     
     # Import the streaming report generation function
     try:

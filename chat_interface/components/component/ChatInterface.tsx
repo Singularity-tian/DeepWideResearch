@@ -12,6 +12,7 @@ export interface Message {
   content: string
   sender: 'user' | 'bot'
   timestamp: Date
+  streamingHistory?: string[]  // 临时UI状态，不持久化
 }
 
 // Add component Props interface
@@ -110,7 +111,8 @@ export default function ChatInterface({
   const [isTyping, setIsTyping] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
   const [streamingStatus, setStreamingStatus] = useState<string>('')
-  const [streamingHistory, setStreamingHistory] = useState<string[]>([]) // 📜 存储所有历史步骤
+  const [streamingHistory, setStreamingHistory] = useState<string[]>([])
+  const [completedStreamingHistory, setCompletedStreamingHistory] = useState<string[]>([]) // 保存完成后的历史 // 📜 存储所有历史步骤
   const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -335,13 +337,32 @@ export default function ChatInterface({
             setStreamingHistory(statusHistory) // 📜 更新完整的历史步骤
             setIsStreaming(true)
           } else {
+            // 完成时：保存时间线历史，但清空临时streaming状态
             setIsStreaming(false)
             setStreamingStatus('')
-            setStreamingHistory([]) // 清空历史
+            setCompletedStreamingHistory(statusHistory) // 保存完整的时间线历史
+            setStreamingHistory([]) // 清空当前streaming历史
           }
         }
         
         response = await onSendMessage(currentInput, onStreamUpdate)
+        
+        // 在消息添加完成后，将完成的时间线附加到最后一条bot消息
+        if (completedStreamingHistory.length > 0) {
+          setMessages(prev => {
+            const newMessages = [...prev]
+            const lastBotIndex = newMessages.findIndex((m, i) => m.sender === 'bot' && i === newMessages.length - 1)
+            if (lastBotIndex !== -1) {
+              newMessages[lastBotIndex] = {
+                ...newMessages[lastBotIndex],
+                streamingHistory: completedStreamingHistory
+              }
+            }
+            return newMessages
+          })
+          // 清空已使用的历史
+          setCompletedStreamingHistory([])
+        }
       } else {
         await new Promise(resolve => setTimeout(resolve, 1500))
         response = `I received your message: "${currentInput}". This is a simulated response.`
@@ -412,13 +433,32 @@ export default function ChatInterface({
             setStreamingHistory(statusHistory) // 📜 更新完整的历史步骤
             setIsStreaming(true)
           } else {
+            // 完成时：保存时间线历史，但清空临时streaming状态
             setIsStreaming(false)
             setStreamingStatus('')
-            setStreamingHistory([]) // 清空历史
+            setCompletedStreamingHistory(statusHistory) // 保存完整的时间线历史
+            setStreamingHistory([]) // 清空当前streaming历史
           }
         }
         
         response = await onSendMessage(question, onStreamUpdate)
+        
+        // 在消息添加完成后，将完成的时间线附加到最后一条bot消息
+        if (completedStreamingHistory.length > 0) {
+          setMessages(prev => {
+            const newMessages = [...prev]
+            const lastBotIndex = newMessages.findIndex((m, i) => m.sender === 'bot' && i === newMessages.length - 1)
+            if (lastBotIndex !== -1) {
+              newMessages[lastBotIndex] = {
+                ...newMessages[lastBotIndex],
+                streamingHistory: completedStreamingHistory
+              }
+            }
+            return newMessages
+          })
+          // 清空已使用的历史
+          setCompletedStreamingHistory([])
+        }
       } else {
         await new Promise(resolve => setTimeout(resolve, 1500))
         response = `I received your question: "${question}". This is a simulated response.`
@@ -657,6 +697,7 @@ export default function ChatInterface({
               message={{ ...message, content: displayContent }}
               showAvatar={false}
               isStreaming={isWelcomeMessage && isStreamingWelcome}
+              streamingHistory={message.streamingHistory || []}  // 显示保存的时间线
             />
           ) : (
             <UserMessage
