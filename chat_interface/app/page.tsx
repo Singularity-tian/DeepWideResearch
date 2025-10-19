@@ -311,6 +311,7 @@ export default function Home() {
 
       const statusHistory: string[] = [] // 📜 累积所有状态步骤
       let finalReport = ''
+      let isGeneratingReport = false
 
       // Read streaming response
       while (true) {
@@ -328,9 +329,20 @@ export default function Home() {
               if (data.action === 'complete' && data.final_report) {
                 finalReport = data.final_report
                 onStreamUpdate?.(finalReport, false, statusHistory) // 传递完整历史
+                isGeneratingReport = false
+              } else if (data.action === 'report_chunk') {
+                // Streaming report content
+                finalReport = data.accumulated_report
+                if (!isGeneratingReport) {
+                  isGeneratingReport = true
+                }
+                onStreamUpdate?.(finalReport, true, statusHistory) // Stream the accumulated report
               } else if (data.message) {
                 statusHistory.push(data.message) // 👈 追加到历史，不覆盖
-                onStreamUpdate?.(data.message, true, statusHistory) // 传递当前消息和完整历史
+                // Only update streaming status if not currently generating report
+                if (!isGeneratingReport) {
+                  onStreamUpdate?.(data.message, true, statusHistory) // 传递当前消息和完整历史
+                }
               }
             } catch (e) {
               console.warn('Failed to parse SSE data:', line)

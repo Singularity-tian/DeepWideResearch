@@ -264,9 +264,18 @@ export default function BotMessage({ message, showAvatar = true, isTyping = fals
             )}
             
             {/* Message content - with or without report streaming */}
-            {/* Only show content if there's no streamingStatus or if there's actual message content */}
-            {(!streamingStatus || message.content !== streamingStatus) && message.content && (
-              <div style={isStreaming && !streamingStatus ? styles.reportStreaming : styles.content}>
+            {/* Show content when: 
+                1. No streaming status (normal message)
+                2. Content is different from the last history item (avoid duplication)
+                3. Streaming report content (longer content indicates it's a report, not a status message)
+            */}
+            {message.content && (
+              // Don't show if it's the same as the last history item (avoid duplication)
+              streamingHistory.length === 0 || 
+              message.content !== streamingHistory[streamingHistory.length - 1] ||
+              message.content.length > 100  // If content is long, it's likely a report
+            ) && (
+              <div style={isStreaming ? styles.reportStreaming : styles.content}>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{

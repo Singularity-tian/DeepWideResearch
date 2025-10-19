@@ -139,11 +139,30 @@ async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Confi
         })
 
     # ============================================================
-    # Phase 2: Generate - use final_report_generation_prompt
+    # Phase 2: Generate - use final_report_generation_prompt with streaming
     # ============================================================
     yield {"action": "generating", "message": "research finished, generating..."}
     
-    await final_report_generation(state, cfg, api_keys)
+    # Import the streaming report generation function
+    try:
+        from .generate_strategy import generate_report_stream
+    except ImportError:
+        try:
+            from deep_wide_research.generate_strategy import generate_report_stream
+        except ImportError:
+            from generate_strategy import generate_report_stream
+    
+    # Stream the report generation
+    final_report_content = ""
+    async for chunk in generate_report_stream(state, cfg, api_keys):
+        final_report_content += chunk
+        # Yield each chunk as it arrives
+        yield {"action": "report_chunk", "chunk": chunk, "accumulated_report": final_report_content}
+    
+    # Update state with the final report
+    state["final_report"] = final_report_content
+    state["notes"] = []
+    state["messages"].append({"role": "assistant", "content": final_report_content})
     
     # Close all MCP clients
     try:
@@ -162,8 +181,8 @@ async def run_deep_research_stream(user_messages: List[str], cfg: Optional[Confi
         except Exception:
             pass
     
-    # Send the final result
-    yield {"action": "complete", "message": state["final_report"], "final_report": state["final_report"]}
+    # Send the completion signal
+    yield {"action": "complete", "message": final_report_content, "final_report": final_report_content}
 
 
 async def run_deep_research(user_messages: List[str], cfg: Optional[Configuration] = None, api_keys: Optional[dict] = None, mcp_config: Optional[Dict[str, List[str]]] = None, deep_param: float = 0.5, wide_param: float = 0.5) -> dict:

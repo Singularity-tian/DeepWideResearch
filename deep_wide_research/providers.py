@@ -79,6 +79,30 @@ async def chat_complete(
     )
 
 
+async def chat_complete_stream(
+    model: str, 
+    messages: List[Dict[str, Any]], 
+    max_tokens: int, 
+    api_keys: Optional[dict] = None,
+):
+    """Chat completion with streaming - yields content chunks as they arrive"""
+    client = AsyncOpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=_get_api_key(api_keys)
+    )
+    
+    stream = await client.chat.completions.create(
+        model=_fix_model_id(model),
+        messages=messages,
+        max_tokens=max_tokens,
+        stream=True,
+    )
+    
+    async for chunk in stream:
+        if chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
+
 if __name__ == "__main__":
     import asyncio
     
