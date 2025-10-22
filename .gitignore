@@ -6,6 +6,8 @@
 .idea/
 
 ## Python
+**/bin/*
+**/lib/*
 **/__pycache__/
 **/*.py[cod]
 **/*.pyo
