@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="chat_interface/public/title.svg" alt="Open Deep Wide Research" width="830" />
+  <img src="chat_interface/public/title.svg" alt="Open Deep Wide Research" />
 </p>
 
 <h1 align="center">Open Deep Wide Research</h1>
