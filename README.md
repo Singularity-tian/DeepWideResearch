@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="asserts/DWResearch.png" alt="Deep & Wide Research Logo" width="120" />
+  <img src="chat_interface/public/title.svg" alt="Open Deep Wide Research" width="830" />
 </p>
 
 <h1 align="center">Open Deep Wide Research</h1>
@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <strong>One API, all RAG scenarios</strong>
+  Build any agentic RAG with depth x width
 </p>
 
 <p align="center">
@@ -45,9 +45,51 @@ We built **Open Deep Wide Research** to be that solution, providing one agent fo
 - **Wide:** Controls information breadth from various sources.
 - **Deep × Wide:** Predicts the cost of a single agentic RAG response.
 
+### Deep × Wide Coordinate System
+
+```
+Deep
+(Reasoning
+ Depth)
+  10 ┤                                    🎯 Ultra Deep Dive
+     │                                    Time: 5-10 min
+   9 ┤                                    Cost: $1.50-5.00
+     │
+   8 ┤          📊 Deep Analysis          📈 Comprehensive Report
+     │          Time: 1-2 min             Time: 2-5 min
+   7 ┤          Cost: $0.20-0.50          Cost: $0.50-1.50
+     │
+   6 ┤
+     │
+   5 ┤                  ⚖️  Balanced Research
+     │                  Time: 30-60s  Cost: $0.20
+   4 ┤
+     │
+   3 ┤
+     │
+   2 ┤     💬 Quick Chat                  🔍 Wide Survey
+     │     Time: 5-10s                    Time: 30-90s
+   1 ┤     Cost: $0.01-0.05               Cost: $0.30-0.60
+     │
+   0 └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴────→
+     0     1     2     3     4     5     6     7     8     9    10
+                            Wide (Information Breadth)
+```
+
+**Choose Your Scenario:**
+
+| Quadrant | Scenario | Deep | Wide | Use Case | Response | Cost |
+|:---------|:---------|:----:|:----:|:---------|:--------:|:----:|
+| **Lower Left** | 💬 Quick Chat | Low | Low | Simple Q&A, casual chat | ~10s | $0.01 |
+| **Lower Right** | 🔍 Wide Survey | Low | High | Market research, trends | ~1min | $0.30 |
+| **Upper Left** | 📊 Deep Analysis | High | Low | Technical analysis | ~2min | $0.20 |
+| **Upper Right** | 📈 Comprehensive Report | High | High | Professional reports | ~5min | $1.00 |
+| **Center** | ⚖️ Balanced Research | Med | Med | General research | ~1min | $0.20 |
+
+> **💡 Pro Tip:** Start with balanced settings (5,5) and adjust based on your needs. Cost scales predictably with Deep × Wide!
+
 > If this mission resonates with you, please give us a star ⭐ and fork it! 🤞
 
----
 
 ## Features
 
@@ -59,10 +101,10 @@ We built **Open Deep Wide Research** to be that solution, providing one agent fo
 - **Customizable Search Engines** – Integrate any search provider. Tavily and Exa supported out-of-the-box. As long as it supports MCP.
 
 
----
 
 ## How We Compare
 
+<div style="width: 100%; overflow-x: auto;">
 
 | Feature | <p align="center"><img src="asserts/DWResearch.png" alt="Open Deep Wide Research" width="40" /><br/>Open<br/>Deep Wide<br/>Research</p> | <p align="center"><img src="chat_interface/public/openai.jpg" alt="OpenAI" width="32" /><br/>OpenAI<br/>Deep Research</p> | <p align="center"><img src="chat_interface/public/genmini.jpg" alt="Gemini" width="32" /><br/>Gemini<br/>Deep Research</p> | <p align="center"><img src="chat_interface/public/manus.png" alt="Manus" width="28" /><br/>Manus  <br/> Wide Research</p> | <p align="center"><img src="chat_interface/public/genspark.jpg" alt="GenSpark" width="40" /><br/>GenSpark<br/>Deep Research</p> | <p align="center"><img src="chat_interface/public/jina.jpg" alt="Jina" width="40" /><br/>Jina<br/>DeepSearch</p> | <p align="center"><img src="chat_interface/public/langchain.png" alt="LangChain" width="40" /><br/>LangChain<br/>Open Deep Research</p> |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -75,10 +117,10 @@ We built **Open Deep Wide Research** to be that solution, providing one agent fo
 | **Search engine flexibility**| ✅ | × | × | × | × | × | × |
 | **Performance** | 5 | 5 | 4 | 3 | 4 | 4 | 3 |
 
+</div>
 
 *Names are trademarks of their owners; descriptions are generalized and may change.*
 
----
 
 ## Get Started
 
