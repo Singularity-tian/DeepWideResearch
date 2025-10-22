@@ -61,6 +61,25 @@ We built **Open Deep Wide Research** to be that solution, providing one agent fo
 
 ---
 
+## How We Compare
+
+
+| Feature | <p align="center"><img src="asserts/DWResearch.png" alt="Open Deep Wide Research" width="40" /><br/>Open<br/>Deep Wide<br/>Research</p> | <p align="center"><img src="chat_interface/public/openai.jpg" alt="OpenAI" width="32" /><br/>OpenAI<br/>Deep Research</p> | <p align="center"><img src="chat_interface/public/genmini.jpg" alt="Gemini" width="32" /><br/>Gemini<br/>Deep Research</p> | <p align="center"><img src="chat_interface/public/manus.png" alt="Manus" width="28" /><br/>Manus  <br/> Wide Research</p> | <p align="center"><img src="chat_interface/public/genspark.jpg" alt="GenSpark" width="40" /><br/>GenSpark<br/>Deep Research</p> | <p align="center"><img src="chat_interface/public/jina.jpg" alt="Jina" width="40" /><br/>Jina<br/>DeepSearch</p> | <p align="center"><img src="chat_interface/public/langchain.png" alt="LangChain" width="40" /><br/>LangChain<br/>Open Deep Research</p> |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Depth × width controls** | D x W | × | × | W | × | D | × |
+| **Open source** | ✅ | × | × | × | × | ✅ | ✅ |
+| **MCP support** | ✅ | ✅ | × | × | × | ✅ | × |
+| **SDK / API** | ✅ | ✅ | ✅ | × | × | ✅ | ✅ |
+| **Local knowledge** | ✅ | × | × | × | × | ✅ | ✅ |
+| **Model flexibility** | ✅ | × | × | × | × | × | ✅ |
+| **Search engine flexibility**| ✅ | × | × | × | × | × | × |
+| **Performance** | 5 | 5 | 4 | 3 | 4 | 4 | 3 |
+
+
+*Names are trademarks of their owners; descriptions are generalized and may change.*
+
+---
+
 ## Get Started
 
 ### Prerequisites
